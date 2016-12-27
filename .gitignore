@@ -1,0 +1,14 @@
+# result
+rad
+
+
+# Windows Env
+*.exe
+
+# swap files
+*~
+*.swp
+*.swo
+
+# object files
+*.o

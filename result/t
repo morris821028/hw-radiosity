@@ -1,0 +1,4 @@
+../rad -d 1 -f 0.001 hall.tri hall.001 >hall.001.out &
+../rad -d 1 -f 0.01 hall.tri hall.01 >hall.01.out &
+../rad -d 1 -f 0.005 hall.tri hall.005 >hall.005.out &
+../rad -d 1 -f 0.0005 hall.tri hall.0005 >hall.0005.out &
