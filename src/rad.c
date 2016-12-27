@@ -10,13 +10,14 @@
 #include <string.h>
 #include "rad.h"
 #include "raycast.h"
+#include "shade.h"
 #include "vector.h"
 #include "time.h"
 
 #define DEBUG3x
 #define MAX_OPTION  7
 
-void Shade(TrianglePtr srctri, int logsrc, TrianglePtr destri, int logdest, int realdest);
+// void Shade(TrianglePtr srctri, int logsrc, TrianglePtr destri, int logdest, int realdest);
 
 int Debug = 0;
 float AreaLimit = 5.0;
@@ -65,7 +66,8 @@ void
    while (1)
      {
      /* skip the "Triangle" string */
-	fscanf(fp, "%s", buf);
+	if (fscanf(fp, "%s", buf) != 1)
+		break;
 	if (feof(fp))
 	   break;
 	tp = &TriStore[trinum];
@@ -190,7 +192,10 @@ void
 	strcpy(cmd, "gzip ");
 	strcat(cmd, fn);
 	printf("Compress output file %s .\n", fn);
-	system(cmd);
+	if (system(cmd))
+		puts("OK");
+	else
+		puts("Failed");
      }
 }
 
@@ -332,7 +337,7 @@ void
 int
     MaxDeltaRad(void)
 {
-   int i, maxi;
+   int i, maxi(0);
    float maxt, maxta, total, totala;
    TrianglePtr tp;
 

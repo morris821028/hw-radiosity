@@ -23,10 +23,10 @@ Clip(Vector p0, Vector p1, Vector g0, Vector g1, int x, int y)
 {
 	float           a, b, s, t;
 
-	if ((p0[x] < g0[x]) && (p1[x] < g0[x]) ||
-	    (p0[x] > g1[x]) && (p1[x] > g1[x]) ||
-	    (p0[y] < g0[y]) && (p1[y] < g0[y]) ||
-	    (p0[y] > g1[y]) && (p1[y] > g1[y]))
+	if ((p0[x] < g0[x] && p1[x] < g0[x]) ||
+	    (p0[x] > g1[x] && p1[x] > g1[x]) ||
+	    (p0[y] < g0[y] && p1[y] < g0[y]) ||
+	    (p0[y] > g1[y] && p1[y] > g1[y]))
 		return FALSE;
 
 	a = p1[y] - p0[y];
@@ -407,7 +407,7 @@ int
 RayHitted(Vector p, Vector v, int otri)
 {
 	int             tn, otn, tri;
-	float           t;
+	float           t(0);
 	Vector          q;
 
 	CopyVector(p, q);

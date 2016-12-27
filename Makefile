@@ -25,4 +25,5 @@ report.o: ./src/report.c
 	$(CXX) $(CFLAG) -c ./src/report.c
 
 clean: 
-	rm *.o
+	-rm rad
+	-rm *.o

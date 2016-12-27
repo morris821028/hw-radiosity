@@ -2,6 +2,7 @@
 #define _VECTOR_H
 
 #include <math.h>
+#include <assert.h>
 
 typedef float	Vector[3];
 typedef float	*VectorPtr;
@@ -39,8 +40,8 @@ typedef float 	Matrix[4][4];
                 (v3)[2]=(v2)[2]-(v1)[2]; }
 #define CosTheta(v1,v2) (InnerProd(v1,v2)/norm(v1)/norm(v2))
 
-#define ReadVector(fp,v)    {fscanf(fp,"%f%f%f",&(v[0]),&(v[1]),&(v[2]));}
-#define ReadIVector(fp,v)   {fscanf(fp,"%d%d%d",&(v[0]),&(v[1]),&(v[2]));}
+#define ReadVector(fp,v)    {assert(fscanf(fp,"%f%f%f",&(v[0]),&(v[1]),&(v[2])) == 3);}
+#define ReadIVector(fp,v)   {assert(fscanf(fp,"%d%d%d",&(v[0]),&(v[1]),&(v[2])) == 3);}
 
 
 #define  Round(x) ( (x)>=0? (int)((x)+0.5): (int)((x)-0.5) )

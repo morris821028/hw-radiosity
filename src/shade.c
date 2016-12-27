@@ -143,7 +143,7 @@ float      AdaptCalFF(float ff, TrianglePtr srctri, int logsrc, TrianglePtr dest
    float ff1, ff2;
    Triangle t1, t2;
    float maxlength, length;
-   int edge, v;
+   int edge(0), v;
    Vector l;
 
    maxlength = 0.0;
@@ -258,7 +258,7 @@ void
 void
      Shade(TrianglePtr srctri, int logsrc, TrianglePtr destri, int logdest, int realdest)
 {
-   int v, destedge, neighboredge, samplenum;
+   int v, destedge(0), neighboredge, samplenum;
    int t1ID, t2ID, t3ID, t4ID, n1ID, n2ID, neighborID;
    float groudFF, ff[3], ff2[3], ffs, deltaff;
    float maxlength, length;
