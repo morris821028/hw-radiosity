@@ -12,3 +12,6 @@ rad
 
 # object files
 *.o
+
+# build file
+output

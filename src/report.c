@@ -8,46 +8,37 @@
 
 #define TIME(x)	((float)x.tv_sec + ((float)x.tv_usec/1000000))
 
-float 
-process_time()
+float process_time()
 {
-	float           system_time, user_time;
-	struct rusage   rusa;
+	float system_time, user_time;
+	struct rusage rusa;
 
 	getrusage(RUSAGE_SELF, &rusa);
 	system_time = TIME(rusa.ru_stime);
 	user_time = TIME(rusa.ru_utime);
 
-	return (system_time + user_time);
+	return system_time + user_time;
 }
 
 
-float 
-real_time()
+float real_time()
 {
-	//int           gettimeofday();
 	struct timeval  start_tp;
 	struct timezone start_tpz;
 	float           now;
 
-	(void) gettimeofday(&start_tp, &start_tpz);
-
-
-	now =
+	gettimeofday(&start_tp, &start_tpz);
+	
+	now = 
 		(1000000 * (long) (start_tp.tv_sec) +
 		 (long) (start_tp.tv_usec)) / 1000000.0;
 
-	return (now);
+	return now;
+}
 
-}				/* end of realtime  */
 
-
-char*
-Ascii_Time()
+char* Ascii_Time()
 {
-
-	long            clock;
-
-	clock = time(0);
+	long clock = time(0);
 	return ctime(&clock);
 }
