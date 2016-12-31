@@ -18,8 +18,7 @@ int             GridNum;
  * defined by corner (go,g1) ** We only detect if the intersection of line
  * with the grid  **  (interior included) is empty.
  */
-int 
-Clip(Vector p0, Vector p1, Vector g0, Vector g1, int x, int y)
+int Clip(Vector p0, Vector p1, Vector g0, Vector g1, int x, int y)
 {
 	float           a, b, s, t;
 
@@ -55,8 +54,7 @@ Clip(Vector p0, Vector p1, Vector g0, Vector g1, int x, int y)
 /*
  * * sort three vector with respect to dimension d
  */
-void 
-sort(VectorPtr * maxv, VectorPtr * midv, VectorPtr * minv, int d)
+static inline void sort(VectorPtr * maxv, VectorPtr * midv, VectorPtr * minv, int d)
 {
 	VectorPtr       t;
 
@@ -83,12 +81,9 @@ sort(VectorPtr * maxv, VectorPtr * midv, VectorPtr * minv, int d)
  * 
  * is g.
  */
-void 
-InterpVector(Vector maxv, Vector minv, float g, int d, Vector p)
+void InterpVector(Vector maxv, Vector minv, float g, int d, Vector p)
 {
-	float           dd;
-
-	dd = maxv[d] - minv[d];
+	float dd = maxv[d] - minv[d];
 	if (dd == 0.0) {
 		CopyVector(maxv, p);
 	} else {
@@ -105,8 +100,7 @@ InterpVector(Vector maxv, Vector minv, float g, int d, Vector p)
  * the side (should be a line) **       test if the line is clipped with the
  * grid which is **             the projection of cube to the side.
  */
-int 
-CrossOver(TrianglePtr tri, Vector g0, Vector g1)
+int CrossOver(TrianglePtr tri, Vector g0, Vector g1)
 {
 	int             side, x;
 	VectorPtr       maxv, midv, minv;
@@ -151,31 +145,32 @@ CrossOver(TrianglePtr tri, Vector g0, Vector g1)
 }
 
 
-int 
-CountCrossTri(int olist, int *tlist, Vector g0, Vector g1)
+int CountCrossTri(int olist, int *tlist, Vector g0, Vector g1)
 {
 	int             tp, n;
 
 	*tlist = TriListStorePtr;
 	n = 0;
-	while ((tp = TriListStore[olist++]) >= 0)
+	while ((tp = TriListStore[olist++]) >= 0) {
 		if (CrossOver(&TriStore[tp], g0, g1)) {
 			TriListStore[TriListStorePtr++] = tp;
 			n++;
 		}
+	}
 	TriListStore[TriListStorePtr++] = -1;
 
 	/* for debug use */
+#ifdef _DEBUG
 	if (TriListStorePtr >= MaxTriList) {
 		printf("TriListStorePtr  exceeded\n");
 		exit(1);
 	}
+#endif
 	return n;
 }
 
 
-int 
-partition(int list, int n, int level, Vector g0, Vector g1)
+int partition(int list, int n, int level, Vector g0, Vector g1)
 {
 	TreeNode       *tn;
 	Vector          q0, q1, gg;
@@ -247,12 +242,9 @@ partition(int list, int n, int level, Vector g0, Vector g1)
 }
 
 
-void 
-BuildTree(void)
+void BuildTree(void)
 {
-	int             i;
-
-	for (i = 0; i < trinum; i++)
+	for (int i = 0; i < trinum; i++)
 		TriListStore[i] = i;
 	TriListStorePtr = trinum;
 	TriListStore[TriListStorePtr++] = -1;
@@ -272,31 +264,28 @@ BuildTree(void)
 
 
 
-float 
-NextPoint(Vector p, Vector v, Vector g0, Vector g1, Vector q)
+static inline float NextPoint(Vector p, Vector v, Vector g0, Vector g1, Vector q)
 {
-	float           s, t;
-	int             i;
-
-	s = t = 1000000.0;
-	for (i = 0; i < 3; i++) {
-		if (v[i] > 0.0)
-			s = (g1[i] - p[i]) / v[i];
-		else if (v[i] < 0.0)
-			s = (g0[i] - p[i]) / v[i];
-		if (s < t)
-			t = s;
+	float t_min = 1000000.0;
+	for (int i = 0; i < 3; i++) {
+		if (fabs(v[i]) > 1e-6) {
+			float s;
+			if (v[i] > 0)
+				s = (g1[i] - p[i]) / v[i];
+			else
+				s = (g0[i] - p[i]) / v[i];
+			t_min = min(t_min, s);
+		}
 	}
-	t += 0.1;
-	Add1Vector(p, t, v, q);
-	return t;
+	t_min += 0.1;
+	Add1Vector(p, t_min, v, q);
+	return t_min;
 }
 
 
-int 
-TreeNodeNum(Vector p)
+int TreeNodeNum(Vector p)
 {
-	int             i, ctn, gsize;
+	int             ctn, gsize;
 	int             gnum[3], index;
 
 	if ((p[0] < G0[0]) || (p[0] > G1[0]) ||
@@ -304,7 +293,7 @@ TreeNodeNum(Vector p)
 	    (p[2] < G0[2]) || (p[2] > G1[2]))
 		return -1;
 
-	for (i = 0; i < 3; i++)
+	for (int i = 0; i < 3; i++)
 		gnum[i] = (int) (((double) p[i] - (double) G0[i]) / MinGridLen);
 
 	ctn = 0;
@@ -312,9 +301,9 @@ TreeNodeNum(Vector p)
 	while (TreeNodeStore[ctn].sub[0] >= 0) {
 		gsize >>= 1;
 		index = 0;
-		for (i = 0; i < 3; i++)
+		for (int i = 0; i < 3; i++)
 			if (gnum[i] >= gsize) {
-				index += (1 << i);
+				index |= (1 << i);
 				gnum[i] -= gsize;
 			}
 		ctn = TreeNodeStore[ctn].sub[index];
@@ -323,36 +312,8 @@ TreeNodeNum(Vector p)
 	return ctn;
 }
 
-
-int 
-TreeNodeNum1(Vector p)
-{
-	int             i, ctn, index;
-	Vector          gg;
-
-	if ((p[0] < G0[0]) || (p[0] > G1[0]) ||
-	    (p[1] < G0[1]) || (p[1] > G1[1]) ||
-	    (p[2] < G0[2]) || (p[2] > G1[2]))
-		return -1;
-
-	ctn = 0;
-	while (TreeNodeStore[ctn].sub[0] >= 0) {
-		AddVector(0.5, TreeNodeStore[ctn].g0,
-			  0.5, TreeNodeStore[ctn].g1, gg);
-		index = 0;
-		for (i = 0; i < 3; i++)
-			if (p[i] >= gg[i])
-				index += (1 << i);
-		ctn = TreeNodeStore[ctn].sub[index];
-	}
-
-	return ctn;
-}
-
-
-
-int 
-TriHitted(Vector p, Vector v, TrianglePtr tp, float *t)
+//int TriHitted(Vector p, Vector v, TrianglePtr tp, float *t)
+static inline int TriHitted(Vector p, Vector v, TrianglePtr tp, float *t)
 {
 	float           a1, a2;
 	Vector          vv, q;
@@ -381,30 +342,28 @@ TriHitted(Vector p, Vector v, TrianglePtr tp, float *t)
 }
 
 
-int 
-TriListHitted(Vector p, Vector v, int tlist, int otri)
+static inline int TriListHitted(Vector p, Vector v, int tlist, int src_tri)
 {
-	int             tri, trii;
-	float           trit, t;
+	int tri_idx, tri_tmp;
+	float t_min, t_tmp;
 
 	if (tlist < 0)
 		return -1;
-	trii = -1;
-	trit = 1000000.0;
-	while ((tri = TriListStore[tlist++]) >= 0) {
-		if (tri == otri)
+	tri_idx = -1;
+	t_min = 1000000.0;
+	while ((tri_tmp = TriListStore[tlist++]) >= 0) {
+		if (tri_tmp == src_tri)
 			continue;
-		if (TriHitted(p, v, &TriStore[tri], &t) && (t < trit)) {
-			trii = tri;
-			trit = t;
+		if (TriHitted(p, v, &TriStore[tri_tmp], &t_tmp) && (t_tmp < t_min)) {
+			tri_idx = tri_tmp;
+			t_min = t_tmp;
 		}
 	}
-	return trii;
+	return tri_idx;
 }
 
 
-int 
-RayHitted(Vector p, Vector v, int otri)
+int RayHitted(Vector p, Vector v, int otri)
 {
 	int             tn, otn, tri;
 	float           t(0);
