@@ -14,7 +14,7 @@
 <script type="text/javascript">
 
     var gl, vs_src, fs_src;
-    var modelName = "asset/teapot.json";
+    var modelName = "asset/test.json";
     var teapotData;
 
     function initGL(canvas) {
@@ -437,13 +437,13 @@
 
 
     function handleKeys() {
-        if (currentlyPressedKeys[33]) {
+        if (currentlyPressedKeys[87]) {
             // Page Up
-            eyeview.z -= 1.00;
+            eyeview.z -= 0.20;
         }
-        if (currentlyPressedKeys[34]) {
+        if (currentlyPressedKeys[83]) {
             // Page Down
-            eyeview.z += 1.00;
+            eyeview.z += 0.20;
         }
         if (currentlyPressedKeys[45]) {
             // Insert
@@ -498,10 +498,10 @@
 
         var selectShader = shader[document.querySelector('input[name="optionsShading"]:checked').value];
         drawSceneBegin();
-        drawScene(selectShader, [0, 5, 0], [1, 1, 1]);
-        drawScene(shader['flat'], [-20, -15, -20], [0.5, 0.5, 0.5]);
-        drawScene(shader['gouraud'], [0, -15, -20], [0.5, 0.5, 0.5]);
-        drawScene(shader['phong'], [20, -15, -20], [0.5, 0.5, 0.5]);
+        drawScene(selectShader, [0, 5, 10], [1, 1, 1]);
+        drawScene(shader['flat'], [-20, -15, -10], [0.5, 0.5, 0.5]);
+        drawScene(shader['gouraud'], [0, -15, -10], [0.5, 0.5, 0.5]);
+        drawScene(shader['phong'], [20, -15, -10], [0.5, 0.5, 0.5]);
         drawSceneEnd();
 
         animate();
@@ -617,11 +617,11 @@ body {
 <body onload="webGLStart();">
 
 <div class="pure-g" style="margin: auto;">
-    <div class="pure-u-1-2" style="overflow: auto;">
-        <canvas id="ICG-canvas" style="border: none;" width="800" height="600"></canvas>
+    <div class="pure-u-1" style="overflow: auto;">
+        <canvas id="ICG-canvas" style="border: none;" width="1024" height="768"></canvas>
         <div id="loadingtext">Loading world...</div>
     </div>
-    <div class="pure-u-1-2" style="height: 600px; overflow-y: auto; background: white; overflow-x: scroll;">
+    <div class="pure-u-1" style="height: 600px; overflow-y: auto; background: white; overflow-x: scroll;">
 <div class="pure-g" style="padding: 20px;margin: 5%;">
     <div class="pure-u-1">
         <button class="pure-button" onclick="setDefaultConfig()">Default</button>
@@ -634,20 +634,6 @@ body {
                 }
             </style>
             <h3>Model</h3>
-            <button class="pure-button" onclick="changeModel('teapot')">teapot</button>
-            <button class="pure-button" onclick="changeModel('triangle')">triangle</button>
-            <button class="pure-button" onclick="changeModel('Pot')">Pot</button>
-            <button class="pure-button" onclick="changeModel('Patchair')">Patchair</button>
-            <button class="pure-button" onclick="changeModel('Csie')">Csie</button>
-            <button class="pure-button" onclick="changeModel('F1')">F1</button>
-            <button class="pure-button" onclick="changeModel('triangle-color')">triangle-color</button>
-            <button class="pure-button" onclick="changeModel('Kangaroo')">Kangaroo</button>
-            <button class="pure-button" onclick="changeModel('Plant')">Plant</button>
-            <button class="pure-button" onclick="changeModel('Tomcat')">Tomcat</button>
-            <button class="pure-button" onclick="changeModel('Fighter')">Fighter</button>
-            <button class="pure-button" onclick="changeModel('Longteap')">Longteap</button>
-            <button class="pure-button" onclick="changeModel('Mercedes')">Mercedes</button>
-            <button class="pure-button" onclick="changeModel('Mig27')">Mig27</button>
             <button class="pure-button" onclick="changeModel('test')">test</button>
     </div>
     <div class="pure-u-1">
