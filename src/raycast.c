@@ -385,7 +385,7 @@ int RayHitted(Vector p, Vector v, int otri)
 
 	CopyVector(p, q);
 	otn = -1;
-	while ((tn = TreeNodeNum(q)) >= 0) {
+	while ((tn = TreeNodeNum(q)) >= 0) {	// find the ID of the cude which the start point of the ray in
 		if (otn == tn) {
 			fprintf(stderr, "*** Precision Exceeded !!! \n");
 			fprintf(stderr, "*** tri is %d\n", otri);
@@ -395,7 +395,7 @@ int RayHitted(Vector p, Vector v, int otri)
 		}
 		otn = tn;
 
-		if ((tri = TriListHitted(p, v, TreeNodeStore[tn].list, otri)) >= 0)
+		if ((tri = TriListHitted(p, v, TreeNodeStore[tn].list, otri)) >= 0)	// test the triangle in this cube
 			return tri;
 		t = NextPoint(p, v, TreeNodeStore[tn].g0, TreeNodeStore[tn].g1, q);
 	}
