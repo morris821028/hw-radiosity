@@ -20,14 +20,27 @@ int             GridNum;
  */
 int Clip(Vector p0, Vector p1, Vector g0, Vector g1, int x, int y)
 {
-	float           a, b, s, t;
-
+	char mask1 = (p0[x] < g0[x])<<0 |
+				(p0[x] > g1[x])<<1 |
+				(p0[y] < g0[y])<<2 |
+				(p0[y] > g1[y])<<3 ;
+	char mask2 = (p1[x] < g0[x])<<0 |
+				(p1[x] > g1[x])<<1 |
+				(p1[y] < g0[y])<<2 |
+				(p1[y] > g1[y])<<3 ;
+	if (mask1&mask2)	
+		return FALSE;
+	if (!(mask1|mask2))
+		return TRUE;
+/*
 	if ((p0[x] < g0[x] && p1[x] < g0[x]) ||
 	    (p0[x] > g1[x] && p1[x] > g1[x]) ||
 	    (p0[y] < g0[y] && p1[y] < g0[y]) ||
 	    (p0[y] > g1[y] && p1[y] > g1[y]))
 		return FALSE;
+*/
 
+	float a, b, s, t;
 	a = p1[y] - p0[y];
 	b = p1[x] - p0[x];
 
@@ -36,15 +49,15 @@ int Clip(Vector p0, Vector p1, Vector g0, Vector g1, int x, int y)
 		return TRUE;
 
 	s = a * (g0[x] - p0[x]) - b * (g1[y] - p0[y]);
-	if (s * t <= 0)
+	if ((s < 0) != (t < 0))
 		return TRUE;
 
 	s = a * (g1[x] - p0[x]) - b * (g0[y] - p0[y]);
-	if (s * t <= 0)
+	if ((s < 0) != (t < 0))
 		return TRUE;
 
 	s = a * (g1[x] - p0[x]) - b * (g1[y] - p0[y]);
-	if (s * t <= 0)
+	if ((s < 0) != (t < 0))
 		return TRUE;
 
 	return FALSE;
@@ -283,7 +296,7 @@ static inline float NextPoint(Vector p, Vector v, Vector g0, Vector g1, Vector q
 }
 
 
-int TreeNodeNum(Vector p)
+static inline int TreeNodeNum(Vector p)
 {
 	int             ctn, gsize;
 	int             gnum[3], index;
@@ -301,11 +314,12 @@ int TreeNodeNum(Vector p)
 	while (TreeNodeStore[ctn].sub[0] >= 0) {
 		gsize >>= 1;
 		index = 0;
-		for (int i = 0; i < 3; i++)
+		for (int i = 0; i < 3; i++) {
 			if (gnum[i] >= gsize) {
 				index |= (1 << i);
 				gnum[i] -= gsize;
 			}
+		}
 		ctn = TreeNodeStore[ctn].sub[index];
 	}
 
@@ -313,7 +327,7 @@ int TreeNodeNum(Vector p)
 }
 
 //int TriHitted(Vector p, Vector v, TrianglePtr tp, float *t)
-static inline int TriHitted(Vector p, Vector v, TrianglePtr tp, float *t)
+static int TriHitted(Vector p, Vector v, TrianglePtr tp, float *t)
 {
 	float           a1, a2;
 	Vector          vv, q;

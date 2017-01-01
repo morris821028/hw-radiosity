@@ -3,8 +3,8 @@
 #
 
 CXX=g++
-CFLAG=-O2 -pg -msse -Wall -Iinclude
-#CFLAG=-O2 -msse -Wall -Iinclude
+#CFLAG=-O2 -pg -msse -Wall -Iinclude
+CFLAG=-O2 -msse -Wall -Iinclude
 
 OBJECTS=shade.o raycast.o vector.o report.o
 HEADERS=./include/rad.h ./include/raycast.h  ./include/report.h  ./include/shade.h  ./include/vector.h

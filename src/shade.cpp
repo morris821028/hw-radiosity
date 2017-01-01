@@ -14,7 +14,7 @@ extern int Debug;
    return rand();
    }
  */
-int AllocTriangle(void) { 
+static int AllocTriangle(void) { 
 	if (trinum == MaxTri) { 
 		fprintf(stderr, "\n**** Max Triangle exceed : %i ***\n", trinum);
 		exit(-1); 
@@ -23,8 +23,7 @@ int AllocTriangle(void) {
 }
 
 
-	void
-SetNeighborToMe(int neighborID, int oldtriID, int newtriID)
+static void SetNeighborToMe(int neighborID, int oldtriID, int newtriID)
 {
 	if (neighborID >= 0)
 	{
@@ -41,7 +40,7 @@ SetNeighborToMe(int neighborID, int oldtriID, int newtriID)
 /**************************************************
   return ff for the point.
  **************************************************/
-float GetPointInTriangle(TrianglePtr tri, Vector p, float ff[3])
+static float GetPointInTriangle(TrianglePtr tri, Vector p, float ff[3])
 {
 	float rand1, rand2, rand3, totalR;
 
@@ -70,7 +69,7 @@ float GetPointInTriangle(TrianglePtr tri, Vector p, float ff[3])
 Description:
 Partition a Source triangle to two triangle.
  *******************************************************************/
-void PartitionSource(TrianglePtr s, TrianglePtr t1, TrianglePtr t2, int edge)
+static void PartitionSource(TrianglePtr s, TrianglePtr t1, TrianglePtr t2, int edge)
 {
 	Vector p;
 	int i0, i1, i2;
@@ -169,8 +168,7 @@ float      AdaptCalFF(float ff, TrianglePtr srctri, int logsrc, TrianglePtr dest
 }
 
 
-	void
-PartitionDestination(TrianglePtr s, TrianglePtr t1, TrianglePtr t2, int edge)
+static void PartitionDestination(TrianglePtr s, TrianglePtr t1, TrianglePtr t2, int edge)
 {
 
 	Vector p;
