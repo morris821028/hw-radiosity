@@ -202,8 +202,7 @@ init(FILE * fp)
  * Note:: A patch is a light source iff any one background color  ** is
  * nonzero.
  */
-	void
-InitRad(void)
+void InitRad(void)
 {
 	int i, j, v, n;
 	float minarea = 100000000.0, maxarea = 0.0;

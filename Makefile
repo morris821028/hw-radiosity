@@ -3,25 +3,27 @@
 #
 
 CXX=g++
-CFLAG=-O2 -g -Wall -Iinclude
+#CFLAG=-O2 -pg -msse -Wall -Iinclude
+CFLAG=-O2 -msse -Wall -Iinclude
 
-OBJS=shade.o raycast.o vector.o report.o
+OBJECTS=shade.o raycast.o vector.o report.o
+HEADERS=./include/rad.h ./include/raycast.h  ./include/report.h  ./include/shade.h  ./include/vector.h
 
-all: rad $(OBJS)
+all: rad $(OBJECTS)
 
-rad: ./src/rad.c $(OBJS)
-	$(CXX) $(CFLAG) $(OBJS) ./src/rad.c -o rad -lm 
+rad: ./src/rad.c $(OBJECTS) $(HEADERS)
+	$(CXX) $(CFLAG) $(OBJECTS) ./src/rad.c -o rad -lm 
 
-shade.o: ./src/shade.c
-	$(CXX) $(CFLAG) -c ./src/shade.c
+shade.o: ./src/shade.cpp $(HEADERS)
+	$(CXX) $(CFLAG) -c ./src/shade.cpp
 
-raycast.o: ./src/raycast.c
+raycast.o: ./src/raycast.c $(HEADERS)
 	$(CXX) $(CFLAG) -c ./src/raycast.c
 
-vector.o: ./src/vector.c
+vector.o: ./src/vector.c $(HEADERS)
 	$(CXX) $(CFLAG) -c ./src/vector.c
 
-report.o: ./src/report.c
+report.o: ./src/report.c $(HEADERS)
 	$(CXX) $(CFLAG) -c ./src/report.c
 
 clean: 
