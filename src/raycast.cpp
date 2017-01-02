@@ -2,6 +2,10 @@
 #include "raycast.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include <bits/stdc++.h>
+#include <unordered_set>
+#include <unordered_map>
+using namespace std;
 
 int             TriListStore[MaxTriList];
 int             TriListStorePtr;
@@ -204,53 +208,26 @@ int partition(int list, int n, int level, Vector g0, Vector g1)
 	CopyVector(g1, tn->g1);
 	tn->list = list;
 
-	if ((n <= MaxTriPerNode) || (level >= MaxLevel)) {
+	if (n <= MaxTriPerNode || level >= MaxLevel) {
 		for (i = 0; i < 8; i++)
 			tn->sub[i] = -1;
 		return index;
 	}
 	AddVector(0.5, g0, 0.5, g1, gg);	/* midv point of g0, g1 */
 
-	InitVector(q0, g0[0], g0[1], g0[2]);
-	InitVector(q1, gg[0], gg[1], gg[2]);
-	n = CountCrossTri(list, &list1, q0, q1);
-	tn->sub[0] = partition(list1, n, level + 1, q0, q1);
-
-	InitVector(q0, gg[0], g0[1], g0[2]);
-	InitVector(q1, g1[0], gg[1], gg[2]);
-	n = CountCrossTri(list, &list1, q0, q1);
-	tn->sub[1] = partition(list1, n, level + 1, q0, q1);
-
-	InitVector(q0, g0[0], gg[1], g0[2]);
-	InitVector(q1, gg[0], g1[1], gg[2]);
-	n = CountCrossTri(list, &list1, q0, q1);
-	tn->sub[2] = partition(list1, n, level + 1, q0, q1);
-
-	InitVector(q0, gg[0], gg[1], g0[2]);
-	InitVector(q1, g1[0], g1[1], gg[2]);
-	n = CountCrossTri(list, &list1, q0, q1);
-	tn->sub[3] = partition(list1, n, level + 1, q0, q1);
-
-	InitVector(q0, g0[0], g0[1], gg[2]);
-	InitVector(q1, gg[0], gg[1], g1[2]);
-	n = CountCrossTri(list, &list1, q0, q1);
-	tn->sub[4] = partition(list1, n, level + 1, q0, q1);
-
-	InitVector(q0, gg[0], g0[1], gg[2]);
-	InitVector(q1, g1[0], gg[1], g1[2]);
-	n = CountCrossTri(list, &list1, q0, q1);
-	tn->sub[5] = partition(list1, n, level + 1, q0, q1);
-
-	InitVector(q0, g0[0], gg[1], gg[2]);
-	InitVector(q1, gg[0], g1[1], g1[2]);
-	n = CountCrossTri(list, &list1, q0, q1);
-	tn->sub[6] = partition(list1, n, level + 1, q0, q1);
-
-	InitVector(q0, gg[0], gg[1], gg[2]);
-	InitVector(q1, g1[0], g1[1], g1[2]);
-	n = CountCrossTri(list, &list1, q0, q1);
-	tn->sub[7] = partition(list1, n, level + 1, q0, q1);
-
+	for (int i = 0; i < 8; i++) {
+		InitVector(q0, g0[0], g0[1], g0[2]);
+		InitVector(q1, g1[0], g1[1], g1[2]);
+		for (int j = 0; j < 3; j++) {
+			if ((i>>j)&1) {
+				q0[j] = gg[j];
+			} else {
+				q1[j] = gg[j];
+			}
+		}
+		n = CountCrossTri(list, &list1, q0, q1);
+		tn->sub[i] = partition(list1, n, level+1, q0, q1);
+	}
 	return index;
 }
 
@@ -375,14 +352,11 @@ static inline int TriListHitted(Vector p, Vector v, int tlist, int src_tri)
 	}
 	return tri_idx;
 }
-
-
 int RayHitted(Vector p, Vector v, int otri)
 {
 	int             tn, otn, tri;
 	float           t(0);
 	Vector          q;
-
 	CopyVector(p, q);
 	otn = -1;
 	while ((tn = TreeNodeNum(q)) >= 0) {	// find the ID of the cude which the start point of the ray in
@@ -395,8 +369,9 @@ int RayHitted(Vector p, Vector v, int otri)
 		}
 		otn = tn;
 
-		if ((tri = TriListHitted(p, v, TreeNodeStore[tn].list, otri)) >= 0)	// test the triangle in this cube
+		if ((tri = TriListHitted(p, v, TreeNodeStore[tn].list, otri)) >= 0)	{ // test the triangle in this cube
 			return tri;
+		}
 		t = NextPoint(p, v, TreeNodeStore[tn].g0, TreeNodeStore[tn].g1, q);
 	}
 	return -1;
