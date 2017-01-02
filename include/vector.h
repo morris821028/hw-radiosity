@@ -62,19 +62,22 @@ typedef float 	Matrix[4][4];
 		(tp)->area = norm((tp)->n)/2; }
 	
 
-/*  for c++ prototype ......*/
-
-float norm(Vector v);
-float norm2(Vector v);
-void CrossProd(Vector a, Vector b, Vector v);
-void normalize(Vector v);
-void PrintVector(char *s, Vector v);
-
+inline float norm(Vector v) {
+	return sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
+}
+inline float norm2(Vector v) {
+	return (v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
+}
+inline void CrossProd(Vector v1, Vector v2, Vector v) {
+	v[0] = v1[1] * v2[2] - v2[1] * v1[2];
+	v[1] = v1[2] * v2[0] - v2[2] * v1[0];
+	v[2] = v1[0] * v2[1] - v2[0] * v1[1];
+}
+inline void normalize(Vector p) {
+	float t = norm(p);
+	p[0] /= t, p[1] /= t, p[2] /= t;
+}
+inline void PrintVector(char *s, Vector v) {
+	printf("%s %f %f %f\n", s, (v)[0], (v)[1], (v)[2]);
+}
 #endif
-/*  for c prototype ....... */
-/*extern	float norm();
-extern float norm2();
-extern  CrossProd();
-extern 	normalize();
-extern  PrintVector();
-*/

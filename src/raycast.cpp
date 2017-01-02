@@ -44,17 +44,17 @@ static int Clip(Vector p0, Vector p1, Vector g0, Vector g1, int x, int y)
 	t = a * (g0[x] - p0[x]) - b * (g0[y] - p0[y]);
 	if (t == 0)
 		return true;
-
-	s = a * (g0[x] - p0[x]) - b * (g1[y] - p0[y]);
-	if ((s < 0) != (t < 0))
+	t = t < 0;
+	s = (a * (g0[x] - p0[x]) - b * (g1[y] - p0[y])) < 0;
+	if (s != t)
 		return true;
 
-	s = a * (g1[x] - p0[x]) - b * (g0[y] - p0[y]);
-	if ((s < 0) != (t < 0))
+	s = (a * (g1[x] - p0[x]) - b * (g0[y] - p0[y])) < 0;
+	if (s != t)
 		return true;
 
-	s = a * (g1[x] - p0[x]) - b * (g1[y] - p0[y]);
-	if ((s < 0) != (t < 0))
+	s = (a * (g1[x] - p0[x]) - b * (g1[y] - p0[y])) < 0;
+	if (s != t)
 		return true;
 
 	return false;

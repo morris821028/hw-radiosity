@@ -6,8 +6,10 @@ CXX=g++
 CFLAG=-O2 -std=c++11 -pg -msse -Wall -Iinclude
 #CFLAG=-O2 -std=c++11 -msse -Wall -Iinclude
 
-OBJECTS=shade.o raycast.o vector.o report.o
+OBJECTS=shade.o raycast.o report.o
 HEADERS=./include/rad.h ./include/raycast.h  ./include/report.h  ./include/shade.h  ./include/vector.h
+
+.PHONY: all clean
 
 all: rad $(OBJECTS)
 
@@ -19,9 +21,6 @@ shade.o: ./src/shade.cpp $(HEADERS)
 
 raycast.o: ./src/raycast.cpp $(HEADERS)
 	$(CXX) $(CFLAG) -c ./src/raycast.cpp
-
-vector.o: ./src/vector.c $(HEADERS)
-	$(CXX) $(CFLAG) -c ./src/vector.c
 
 report.o: ./src/report.c $(HEADERS)
 	$(CXX) $(CFLAG) -c ./src/report.c
