@@ -98,7 +98,7 @@ static inline void sort(VectorPtr * maxv, VectorPtr * midv, VectorPtr * minv, in
  * 
  * is g.
  */
-void InterpVector(Vector maxv, Vector minv, float g, int d, Vector p)
+static void InterpVector(Vector maxv, Vector minv, float g, int d, Vector p)
 {
 	float dd = maxv[d] - minv[d];
 	if (dd == 0.0) {
@@ -117,7 +117,7 @@ void InterpVector(Vector maxv, Vector minv, float g, int d, Vector p)
  * the side (should be a line) **       test if the line is clipped with the
  * grid which is **             the projection of cube to the side.
  */
-int CrossOver(TrianglePtr tri, Vector g0, Vector g1)
+static int CrossOver(TrianglePtr tri, Vector g0, Vector g1)
 {
 	int             side, x;
 	VectorPtr       maxv, midv, minv;
@@ -162,60 +162,50 @@ int CrossOver(TrianglePtr tri, Vector g0, Vector g1)
 }
 
 
-int CountCrossTri(int olist, int *tlist, Vector g0, Vector g1)
+static vector<int> CountCrossTriangle(vector<int> &triangleIdxs, Vector g0, Vector g1)
 {
-	int             tp, n;
-
-	*tlist = TriListStorePtr;
-	n = 0;
-	while ((tp = TriListStore[olist++]) >= 0) {
-		if (CrossOver(&TriStore[tp], g0, g1)) {
-			TriListStore[TriListStorePtr++] = tp;
-			n++;
-		}
+	vector<int> ret;
+	ret.reserve(triangleIdxs.size());
+	for (auto idx: triangleIdxs) {
+		if (CrossOver(&TriStore[idx], g0, g1))
+			ret.push_back(idx);
 	}
-	TriListStore[TriListStorePtr++] = -1;
-
-	/* for debug use */
-#ifdef _DEBUG
-	if (TriListStorePtr >= MaxTriList) {
-		printf("TriListStorePtr  exceeded\n");
-		exit(1);
-	}
-#endif
-	return n;
+	return ret;
 }
 
 
-int partition(int list, int n, int level, Vector g0, Vector g1)
+static int buildTree(vector<int> triangleIdxs, int level, Vector g0, Vector g1)
 {
-	TreeNode       *tn;
-	Vector          q0, q1, gg;
-	int             i, list1, index;
-
-	index = TreeNodeStorePtr;
-	tn = &TreeNodeStore[TreeNodeStorePtr++];
+	int n = triangleIdxs.size();
+	int index = TreeNodeStorePtr;
+	TreeNode *tn = &TreeNodeStore[TreeNodeStorePtr++];
 
 	/* for debug use */
 	if (TreeNodeStorePtr >= MaxTreeNode) {
 		printf("treenodenum exceeded\n");
 		exit(1);
 	}
-	if ((g1[0] - g0[0]) < MinGridLen)
+	if (g1[0] - g0[0] < MinGridLen)
 		MinGridLen = (g1[0] - g0[0]);
 
 	CopyVector(g0, tn->g0);
 	CopyVector(g1, tn->g1);
-	tn->list = list;
 
 	if (n <= MaxTriPerNode || level >= MaxLevel) {
-		for (i = 0; i < 8; i++)
+		for (int i = 0; i < 8; i++)
 			tn->sub[i] = -1;
+		tn->list = TriListStorePtr;
+		for (auto idx: triangleIdxs)
+			TriListStore[TriListStorePtr++] = idx;
+		TriListStore[TriListStorePtr++] = -1;
 		return index;
 	}
+
+	Vector gg;
 	AddVector(0.5, g0, 0.5, g1, gg);	/* midv point of g0, g1 */
 
 	for (int i = 0; i < 8; i++) {
+		Vector q0, q1;
 		InitVector(q0, g0[0], g0[1], g0[2]);
 		InitVector(q1, g1[0], g1[1], g1[2]);
 		for (int j = 0; j < 3; j++) {
@@ -225,8 +215,8 @@ int partition(int list, int n, int level, Vector g0, Vector g1)
 				q1[j] = gg[j];
 			}
 		}
-		n = CountCrossTri(list, &list1, q0, q1);
-		tn->sub[i] = partition(list1, n, level+1, q0, q1);
+		vector<int> filterIdxs(CountCrossTriangle(triangleIdxs, q0, q1));
+		tn->sub[i] = buildTree(filterIdxs, level+1, q0, q1);
 	}
 	return index;
 }
@@ -234,16 +224,16 @@ int partition(int list, int n, int level, Vector g0, Vector g1)
 
 void BuildTree(void)
 {
+	vector<int> triangleIdxs(trinum);
 	for (int i = 0; i < trinum; i++)
-		TriListStore[i] = i;
-	TriListStorePtr = trinum;
-	TriListStore[TriListStorePtr++] = -1;
+		triangleIdxs[i] = i;
+	TriListStorePtr = 0;
 
 	TreeNodeStorePtr = 0;
 
 	MinGridLen = G1[0] - G0[0];
 
-	partition(0, trinum, 0, G0, G1);
+	buildTree(triangleIdxs, 0, G0, G1);
 
 	GridNum = (int) ((G1[0] - G0[0]) / MinGridLen);
 
