@@ -102,20 +102,19 @@ Calculate ff for a vertex to a triangle.
  *******************************************************************/
 float CalFF(TrianglePtr srctri, int logsrc, TrianglePtr destri, int logdest, Vector p)
 {
-	float ff = 0;
-	float ctheta1, ctheta2;
 	Vector dir;
-
 	VectorTo(p, srctri->c, dir);
+	float ctheta1 = CosTheta(dir, srctri->n);
+	float ctheta2 = -CosTheta(dir, destri->n);
+	float ff = ctheta1 * ctheta2;
+	if (ff < 1e-6)
+		return 0.0;
+	ff *= srctri->area / (norm2(dir) * PI + srctri->area);
+	if (ff < 1e-6)
+		return 0.0;
 	if (RayHitted(p, dir, logdest) == logsrc)
-	{				  /* if hit logical source */
-		ctheta1 = CosTheta(dir, srctri->n);
-		ctheta2 = -CosTheta(dir, destri->n);
-		ff = ctheta1 * ctheta2 * srctri->area / (norm2(dir) * PI + srctri->area);
-	}				  /* if  ray hit. */
-	if (ff < 0.0)
-		return (0.0);
-	return ff;
+		return ff;
+	return 0.0;
 }
 
 
@@ -246,12 +245,12 @@ static inline void CalRadiosity(TrianglePtr srctri, TrianglePtr destri, float ff
 
 void Shade(TrianglePtr srctri, int logsrc, TrianglePtr destri, int logdest, int realdest)
 {
-	int destedge(0), neighboredge, samplenum;
+	int destedge(0), neighboredge;
 	int t1ID, t2ID, t3ID, t4ID, n1ID, n2ID, neighborID;
 	float groudFF, ff[3], ff2[3], ffs, deltaff;
 	float maxlength, length;
 	TrianglePtr t1, t2, t3, t4, neighbortri;
-	Vector l, temp;
+	Vector l;
 
 	/**********************************************************
 	  Calculate FF first.
@@ -278,9 +277,10 @@ void Shade(TrianglePtr srctri, int logsrc, TrianglePtr destri, int logdest, int 
 	ffs = CalFF(srctri, logsrc, destri, logdest, destri->c);
 	if ((deltaff = ffabs(groudFF - ffs)) < DeltaFFLimit)
 	{
-		samplenum = (int)(destri->area / SampleArea);
+		int samplenum = (int)(destri->area / SampleArea);
 		for (int v = 0; v < samplenum; v++)
 		{
+			Vector temp;
 			groudFF = GetPointInTriangle(destri, temp, ff);
 			/*      ffs = AdaptCalFF(CalFF(srctri, logsrc, destri, logdest, temp),
 					srctri, logsrc, destri, logdest, temp); */
