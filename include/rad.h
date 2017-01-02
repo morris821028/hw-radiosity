@@ -1,10 +1,6 @@
 #include <stdio.h>
 #include "vector.h"
 
-
-#define TRUE		(-1)
-#define FALSE		0
-
 #define PI		(3.1415926535897932)
 
 #define MaxLevel	6

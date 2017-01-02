@@ -17,32 +17,25 @@ float           MinGridLen;
 int             GridNum;
 
 
-/*
- * * two-dimension clip (at dimension x & y ) ** clip line (p0--p1) with grid
- * defined by corner (go,g1) ** We only detect if the intersection of line
- * with the grid  **  (interior included) is empty.
+/**
+ * two-dimension clip (at dimension x & y) clip line (p0 -- p1) with grid
+ * defined by corner (go,g1). We only detect if the intersection of line
+ * with the grid (interior included) is empty.
  */
-int Clip(Vector p0, Vector p1, Vector g0, Vector g1, int x, int y)
+static int Clip(Vector p0, Vector p1, Vector g0, Vector g1, int x, int y)
 {
 	char mask1 = (p0[x] < g0[x])<<0 |
-				(p0[x] > g1[x])<<1 |
-				(p0[y] < g0[y])<<2 |
-				(p0[y] > g1[y])<<3 ;
+		(p0[x] > g1[x])<<1 |
+		(p0[y] < g0[y])<<2 |
+		(p0[y] > g1[y])<<3 ;
 	char mask2 = (p1[x] < g0[x])<<0 |
-				(p1[x] > g1[x])<<1 |
-				(p1[y] < g0[y])<<2 |
-				(p1[y] > g1[y])<<3 ;
+		(p1[x] > g1[x])<<1 |
+		(p1[y] < g0[y])<<2 |
+		(p1[y] > g1[y])<<3 ;
 	if (mask1&mask2)	
-		return FALSE;
+		return false;
 	if (!(mask1|mask2))
-		return TRUE;
-/*
-	if ((p0[x] < g0[x] && p1[x] < g0[x]) ||
-	    (p0[x] > g1[x] && p1[x] > g1[x]) ||
-	    (p0[y] < g0[y] && p1[y] < g0[y]) ||
-	    (p0[y] > g1[y] && p1[y] > g1[y]))
-		return FALSE;
-*/
+		return true;
 
 	float a, b, s, t;
 	a = p1[y] - p0[y];
@@ -50,26 +43,26 @@ int Clip(Vector p0, Vector p1, Vector g0, Vector g1, int x, int y)
 
 	t = a * (g0[x] - p0[x]) - b * (g0[y] - p0[y]);
 	if (t == 0)
-		return TRUE;
+		return true;
 
 	s = a * (g0[x] - p0[x]) - b * (g1[y] - p0[y]);
 	if ((s < 0) != (t < 0))
-		return TRUE;
+		return true;
 
 	s = a * (g1[x] - p0[x]) - b * (g0[y] - p0[y]);
 	if ((s < 0) != (t < 0))
-		return TRUE;
+		return true;
 
 	s = a * (g1[x] - p0[x]) - b * (g1[y] - p0[y]);
 	if ((s < 0) != (t < 0))
-		return TRUE;
+		return true;
 
-	return FALSE;
+	return false;
 }
 
 
-/*
- * * sort three vector with respect to dimension d
+/**
+ * sort three vector with respect to dimension d
  */
 static inline void sort(VectorPtr * maxv, VectorPtr * midv, VectorPtr * minv, int d)
 {
@@ -119,50 +112,53 @@ static void InterpVector(Vector maxv, Vector minv, float g, int d, Vector p)
  */
 static int CrossOver(TrianglePtr tri, Vector g0, Vector g1)
 {
-	int             side, x;
 	VectorPtr       maxv, midv, minv;
 	Vector          p0, p1;
 
-	side = 0;
 	maxv = tri->p[0];
 	midv = tri->p[1];
 	minv = tri->p[2];
-	for (x = 0; x < 3; x++) {
+	for (int x = 0; x < 3; x++) {
 		sort(&maxv, &midv, &minv, x);	/* sorted by index x  */
 
 		if (g1[x] < minv[x])
-			return FALSE;
+			return false;
 		InterpVector(maxv, minv, g1[x], x, p0);
 		if (g1[x] < midv[x]) {
 			InterpVector(midv, minv, g1[x], x, p1);
 			if (Clip(p0, p1, g0, g1, (x + 1) % 3, (x + 2) % 3))
-				return TRUE;
+				return true;
+			else
+				return false;
 		} else if (g1[x] <= maxv[x]) {
 			InterpVector(maxv, midv, g1[x], x, p1);
 			if (Clip(p0, p1, g0, g1, (x + 1) % 3, (x + 2) % 3))
-				return TRUE;
-		} else
-			side++;
+				return true;
+			else
+				return false;
+		}
 
 		if (g0[x] > maxv[x])
-			return FALSE;
+			return false;
 		InterpVector(maxv, minv, g0[x], x, p0);
 		if (g0[x] > midv[x]) {
 			InterpVector(maxv, midv, g0[x], x, p1);
 			if (Clip(p0, p1, g0, g1, (x + 1) % 3, (x + 2) % 3))
-				return TRUE;
+				return true;
+			else
+				return false;
 		} else if (g0[x] >= minv[x]) {
 			InterpVector(midv, minv, g0[x], x, p1);
 			if (Clip(p0, p1, g0, g1, (x + 1) % 3, (x + 2) % 3))
-				return TRUE;
-		} else
-			side++;
+				return true;
+			else
+				return false;
+		}
 	}
-	return (side == 6);
+	return true;
 }
 
-
-static vector<int> CountCrossTriangle(vector<int> &triangleIdxs, Vector g0, Vector g1)
+static inline vector<int> CountCrossTriangle(vector<int> &triangleIdxs, Vector g0, Vector g1)
 {
 	vector<int> ret;
 	ret.reserve(triangleIdxs.size());
@@ -172,7 +168,6 @@ static vector<int> CountCrossTriangle(vector<int> &triangleIdxs, Vector g0, Vect
 	}
 	return ret;
 }
-
 
 static int buildTree(vector<int> triangleIdxs, int level, Vector g0, Vector g1)
 {
@@ -238,7 +233,7 @@ void BuildTree(void)
 	GridNum = (int) ((G1[0] - G0[0]) / MinGridLen);
 
 	printf("BuildTree over, TreeNode # is %d, Trilist # is %d\n",
-	       TreeNodeStorePtr, TriListStorePtr);
+			TreeNodeStorePtr, TriListStorePtr);
 }
 
 
@@ -269,8 +264,8 @@ static inline int TreeNodeNum(Vector p)
 	int             gnum[3], index;
 
 	if ((p[0] < G0[0]) || (p[0] > G1[0]) ||
-	    (p[1] < G0[1]) || (p[1] > G1[1]) ||
-	    (p[2] < G0[2]) || (p[2] > G1[2]))
+			(p[1] < G0[1]) || (p[1] > G1[1]) ||
+			(p[2] < G0[2]) || (p[2] > G1[2]))
 		return -1;
 
 	for (int i = 0; i < 3; i++)
@@ -304,22 +299,22 @@ static int TriHitted(Vector p, Vector v, TrianglePtr tp, float *t)
 	a2 = InnerProd(vv, tp->n);
 
 	/**********************************************************
-		t < 0 means target triangle is in the oppsite side.
-	**********************************************************/
+	  t < 0 means target triangle is in the oppsite side.
+	 **********************************************************/
 	if ((*t = a2 / a1) < 0.0001)
-		return FALSE;
+		return false;
 	Add1Vector(p, *t, v, q);
 
 	if ((q[0] * (tp->se[0][0]) + q[1] * (tp->se[0][1]) +
-	     q[2] * (tp->se[0][2]) + tp->se[0][3]) < 0.0)
-		return FALSE;
+				q[2] * (tp->se[0][2]) + tp->se[0][3]) < 0.0)
+		return false;
 	if ((q[0] * (tp->se[1][0]) + q[1] * (tp->se[1][1]) +
-	     q[2] * (tp->se[1][2]) + tp->se[1][3]) < 0.0)
-		return FALSE;
+				q[2] * (tp->se[1][2]) + tp->se[1][3]) < 0.0)
+		return false;
 	if ((q[0] * (tp->se[2][0]) + q[1] * (tp->se[2][1]) +
-	     q[2] * (tp->se[2][2]) + tp->se[2][3]) < 0.0)
-		return FALSE;
-	return TRUE;
+				q[2] * (tp->se[2][2]) + tp->se[2][3]) < 0.0)
+		return false;
+	return true;
 }
 
 
