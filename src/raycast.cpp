@@ -86,10 +86,8 @@ static inline void sort(VectorPtr * maxv, VectorPtr * midv, VectorPtr * minv, in
 }
 
 
-/*
- * * Interpolation vector p from maxv, minv such that  **  the value of p[d]
- * 
- * is g.
+/**
+ * Interpolation vector p from maxv, minv such that the value of p[d] is g.
  */
 static void InterpVector(Vector maxv, Vector minv, float g, int d, Vector p)
 {
@@ -103,12 +101,11 @@ static void InterpVector(Vector maxv, Vector minv, float g, int d, Vector p)
 }
 
 
-/*
- * * test if tri is crossed with cube defined by two corner **  g0, g1. ** *
- * For each side of the cube, **     calculate the intersection of tri and
- * 
- * the side (should be a line) **       test if the line is clipped with the
- * grid which is **             the projection of cube to the side.
+/**
+ * test if triangle is crossed with cube defined by two corner g0, g1. 
+ * For each side of the cube, calculate the intersection of tri and 
+ * the side (should be a line) test if the line is clipped with the
+ * grid which is the projection of cube to the side.
  */
 static int CrossOver(TrianglePtr tri, Vector g0, Vector g1)
 {
@@ -180,13 +177,13 @@ static int buildTree(vector<int> triangleIdxs, int level, Vector g0, Vector g1)
 		printf("treenodenum exceeded\n");
 		exit(1);
 	}
-	if (g1[0] - g0[0] < MinGridLen)
-		MinGridLen = (g1[0] - g0[0]);
 
 	CopyVector(g0, tn->g0);
 	CopyVector(g1, tn->g1);
-
+	tn->list = -1;
 	if (n <= MaxTriPerNode || level >= MaxLevel) {
+		if (g1[0] - g0[0] < MinGridLen)
+			MinGridLen = (g1[0] - g0[0]);
 		for (int i = 0; i < 8; i++)
 			tn->sub[i] = -1;
 		tn->list = TriListStorePtr;
@@ -236,9 +233,6 @@ void BuildTree(void)
 			TreeNodeStorePtr, TriListStorePtr);
 }
 
-
-
-
 static inline float NextPoint(Vector p, Vector v, Vector g0, Vector g1, Vector q)
 {
 	float t_min = 1000000.0;
@@ -260,22 +254,21 @@ static inline float NextPoint(Vector p, Vector v, Vector g0, Vector g1, Vector q
 
 static inline int TreeNodeNum(Vector p)
 {
-	int             ctn, gsize;
-	int             gnum[3], index;
-
-	if ((p[0] < G0[0]) || (p[0] > G1[0]) ||
-			(p[1] < G0[1]) || (p[1] > G1[1]) ||
-			(p[2] < G0[2]) || (p[2] > G1[2]))
+	if (p[0] < G0[0] || p[0] > G1[0] ||
+		p[1] < G0[1] || p[1] > G1[1] ||
+		p[2] < G0[2] || p[2] > G1[2])
 		return -1;
-
+	int gnum[3];	
+	// computing the position of this vertex for each dimension.
 	for (int i = 0; i < 3; i++)
-		gnum[i] = (int) (((double) p[i] - (double) G0[i]) / MinGridLen);
-
-	ctn = 0;
-	gsize = GridNum;
-	while (TreeNodeStore[ctn].sub[0] >= 0) {
+		gnum[i] = (int) (((double) p[i] - G0[i]) / MinGridLen);
+	
+	// traverse from root node to leaf node
+	int ctn = 0;
+	int gsize = GridNum;
+	while (TreeNodeStore[ctn].list < 0) {
 		gsize >>= 1;
-		index = 0;
+		int index = 0;
 		for (int i = 0; i < 3; i++) {
 			if (gnum[i] >= gsize) {
 				index |= (1 << i);
@@ -288,8 +281,7 @@ static inline int TreeNodeNum(Vector p)
 	return ctn;
 }
 
-//int TriHitted(Vector p, Vector v, TrianglePtr tp, float *t)
-static int TriHitted(Vector p, Vector v, TrianglePtr tp, float *t)
+static int TriHitted(Vector p, Vector v, TrianglePtr tp, float *t_min)
 {
 	float           a1, a2;
 	Vector          vv, q;
@@ -301,9 +293,12 @@ static int TriHitted(Vector p, Vector v, TrianglePtr tp, float *t)
 	/**********************************************************
 	  t < 0 means target triangle is in the oppsite side.
 	 **********************************************************/
-	if ((*t = a2 / a1) < 0.0001)
+	float t;
+	if ((t = (a2 / a1)) < 0.0001)
 		return false;
-	Add1Vector(p, *t, v, q);
+	if (t >= *t_min)
+		return false;
+	Add1Vector(p, t, v, q);
 
 	if ((q[0] * (tp->se[0][0]) + q[1] * (tp->se[0][1]) +
 				q[2] * (tp->se[0][2]) + tp->se[0][3]) < 0.0)
@@ -314,50 +309,50 @@ static int TriHitted(Vector p, Vector v, TrianglePtr tp, float *t)
 	if ((q[0] * (tp->se[2][0]) + q[1] * (tp->se[2][1]) +
 				q[2] * (tp->se[2][2]) + tp->se[2][3]) < 0.0)
 		return false;
+	*t_min = t;
 	return true;
 }
 
 
-static inline int TriListHitted(Vector p, Vector v, int tlist, int src_tri)
+static inline int TriListHitted(Vector p, Vector v, int storeIdx, int banIdx)
 {
-	int tri_idx, tri_tmp;
-	float t_min, t_tmp;
-
-	if (tlist < 0)
+	if (storeIdx < 0)
 		return -1;
+	int tri_idx, tri_tmp;
+	float t_min;
 	tri_idx = -1;
 	t_min = 1000000.0;
-	while ((tri_tmp = TriListStore[tlist++]) >= 0) {
-		if (tri_tmp == src_tri)
+	while ((tri_tmp = TriListStore[storeIdx++]) >= 0) {
+		if (tri_tmp == banIdx)
 			continue;
-		if (TriHitted(p, v, &TriStore[tri_tmp], &t_tmp) && (t_tmp < t_min)) {
+		if (TriHitted(p, v, &TriStore[tri_tmp], &t_min))
 			tri_idx = tri_tmp;
-			t_min = t_tmp;
-		}
 	}
 	return tri_idx;
 }
-int RayHitted(Vector p, Vector v, int otri)
+
+int RayHitted(Vector p, Vector v, int fromTriangleIdx)
 {
-	int             tn, otn, tri;
-	float           t(0);
-	Vector          q;
+	float t = 0.f;
+	int triIdx;
+	int prevIdx = -1, currIdx;
+	Vector q;
+
 	CopyVector(p, q);
-	otn = -1;
-	while ((tn = TreeNodeNum(q)) >= 0) {	// find the ID of the cude which the start point of the ray in
-		if (otn == tn) {
+	while ((currIdx = TreeNodeNum(q)) >= 0) {	// find the ID of the cude which the start point of the ray in
+		if (prevIdx == currIdx) {
 			fprintf(stderr, "*** Precision Exceeded !!! \n");
-			fprintf(stderr, "*** tri is %d\n", otri);
+			fprintf(stderr, "*** the index of triangle is %d\n", fromTriangleIdx);
 			t += 1.0;
 			Add1Vector(p, t, v, q);
 			continue;
 		}
-		otn = tn;
-
-		if ((tri = TriListHitted(p, v, TreeNodeStore[tn].list, otri)) >= 0)	{ // test the triangle in this cube
-			return tri;
+		TreeNode &tmp = TreeNodeStore[currIdx];
+		if ((triIdx = TriListHitted(p, v, tmp.list, fromTriangleIdx)) >= 0)	{ // test the triangle in this cube
+			return triIdx;
 		}
-		t = NextPoint(p, v, TreeNodeStore[tn].g0, TreeNodeStore[tn].g1, q);
+		prevIdx = currIdx; 
+		t = NextPoint(p, v, tmp.g0, tmp.g1, q);
 	}
 	return -1;
 }
