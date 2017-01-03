@@ -9,11 +9,6 @@
 
 extern int Debug;
 
-/*
-   int random() {
-   return rand();
-   }
- */
 static int AllocTriangle(void) { 
 	if (trinum == MaxTri) { 
 		fprintf(stderr, "\n**** Max Triangle exceed : %i ***\n", trinum);
@@ -25,14 +20,13 @@ static int AllocTriangle(void) {
 
 static void SetNeighborToMe(int neighborID, int oldtriID, int newtriID)
 {
-	if (neighborID >= 0)
-	{
-		TrianglePtr neitri = &TriStore[neighborID];
-		int e = 0;
-		for (int v = 0; v < 3; v++)
-			if (neitri->neighbor[v] == oldtriID)
-				e = v;
-		neitri->neighbor[e] = newtriID;
+	if (neighborID < 0)
+		return ;
+	TrianglePtr neitri = &TriStore[neighborID];
+	for (int v = 0; v < 3; v++) {
+		if (neitri->neighbor[v] == oldtriID) {
+			neitri->neighbor[v] = newtriID;
+		}
 	}
 }
 
@@ -44,9 +38,9 @@ static float GetPointInTriangle(TrianglePtr tri, Vector p, float ff[3])
 {
 	float rand1, rand2, rand3, totalR;
 
-	rand1 = (float)(random() >> 12);
-	rand2 = (float)(random() >> 12);
-	rand3 = (float)(random() >> 12);
+	rand1 = (float) rand();
+	rand2 = (float) rand();
+	rand3 = (float) rand();
 	totalR = rand1 + rand2 + rand3;
 	/* Normalize */
 	rand1 /= totalR;
@@ -110,6 +104,7 @@ float CalFF(TrianglePtr srctri, int logsrc, TrianglePtr destri, int logdest, Vec
 	if (ff < 1e-6)
 		return 0.0;
 	ff *= srctri->area / (norm2(dir) * PI + srctri->area);
+	// ff *= srctri->area / (norm2(dir) * PI);
 	if (ff < 1e-6)
 		return 0.0;
 	if (RayHitted(p, dir, logdest) == logsrc)
@@ -129,24 +124,23 @@ Remark:
 Date:
 
  *******************************************************************/
-float      AdaptCalFF(float ff, TrianglePtr srctri, int logsrc, TrianglePtr destri,
-		int logdest, Vector p)
+float AdaptCalFF(float ff, TrianglePtr srctri, int logsrc, TrianglePtr destri, int logdest, Vector p)
 {
 	float ff1, ff2;
 	Triangle t1, t2;
-	float maxlength, length;
 	int edge(0);
 	Vector l;
-
-	maxlength = 0.0;
-	for (int v = 0; v < 3; v++)
 	{
-		VectorTo(srctri->p[v], srctri->p[(v + 1) % 3], l);
-		length = l[0] * l[0] + l[1] * l[1] + l[2] * l[2];
-		if (maxlength < length)
+		float maxlength = 0.0;
+		for (int v = 0; v < 3; v++)
 		{
-			maxlength = length;
-			edge = v;
+			VectorTo(srctri->p[v], srctri->p[(v + 1) % 3], l);
+			float length = l[0] * l[0] + l[1] * l[1] + l[2] * l[2];
+			if (maxlength < length)
+			{
+				maxlength = length;
+				edge = v;
+			}
 		}
 	}
 	/**********************************************************
@@ -226,14 +220,12 @@ static void PartitionDestination(TrianglePtr s, TrianglePtr t1, TrianglePtr t2, 
 
 static inline void CalRadiosity(TrianglePtr srctri, TrianglePtr destri, float ff[3])
 {
-	for (int v = 0; v < 3; v++)
-	{
-		for (int c = 0; c < 3; c++)
-		{			  /* for color = R G B */
+	const float k = RefRatio / 255.0;
+	float lo[3] = {destri->Frgb[0]*k*(srctri->deltaB[0]), destri->Frgb[1]*k*(srctri->deltaB[1]), destri->Frgb[2]*k*(srctri->deltaB[2])};
+	for (int v = 0; v < 3; v++)	{
+		for (int c = 0; c < 3; c++) {			  /* for color = R G B */
 			/* calculate the reflectiveness */
-			float lo, deltaB;
-			lo = destri->Frgb[c] / 255.0 * RefRatio;
-			deltaB = lo * srctri->deltaB[c] * ff[v] / 3;
+			float deltaB = lo[c] * ff[v] / 3;
 			destri->deltaB[c] += deltaB;
 			destri->accB[v][c] += deltaB;
 			destri->deltaaccB[v][c] = deltaB;
@@ -245,10 +237,7 @@ static inline void CalRadiosity(TrianglePtr srctri, TrianglePtr destri, float ff
 
 void Shade(TrianglePtr srctri, int logsrc, TrianglePtr destri, int logdest, int realdest)
 {
-	int destedge(0), neighboredge;
-	int t1ID, t2ID, t3ID, t4ID, n1ID, n2ID, neighborID;
-	float groudFF, ff[3], ff2[3], ffs, deltaff;
-	float maxlength, length;
+	float ff[3], ff2[3], ffs, deltaff;
 	TrianglePtr t1, t2, t3, t4, neighbortri;
 	Vector l;
 
@@ -266,17 +255,16 @@ void Shade(TrianglePtr srctri, int logsrc, TrianglePtr destri, int logdest, int 
 	/**********************************************************
 	  Triangle is too small to split.
 	 **********************************************************/
-	if (destri->area < AreaLimit)
-	{
+	if (destri->area < AreaLimit) {
 		CalRadiosity(srctri, destri, ff);
 		return;
 	}
-	groudFF = (ff[0] + ff[1] + ff[2]) / 3.0;
+
+	float groudFF = (ff[0] + ff[1] + ff[2]) / 3.0;
 	/* ffs = AdaptCalFF(CalFF(srctri, logsrc, destri, logdest, destri->c),
 	   srctri, logsrc, destri, logdest, destri->c); */
 	ffs = CalFF(srctri, logsrc, destri, logdest, destri->c);
-	if ((deltaff = ffabs(groudFF - ffs)) < DeltaFFLimit)
-	{
+	if ((deltaff = ffabs(groudFF - ffs)) < DeltaFFLimit) {
 		int samplenum = (int)(destri->area / SampleArea);
 		for (int v = 0; v < samplenum; v++)
 		{
@@ -288,28 +276,26 @@ void Shade(TrianglePtr srctri, int logsrc, TrianglePtr destri, int logdest, int 
 			if ((deltaff = ffabs(groudFF - ffs)) > DeltaFFLimit)
 				break;
 		}
+		/**********************************************************
+		  If destined triangle is smooth enough, then calculate
+		  radioisity, or split it.
+		 **********************************************************/
+		if (deltaff < DeltaFFLimit) {
+			CalRadiosity(srctri, destri, ff);
+			return;
+		}
 	}
 #ifdef _DEBUG
 	if (Debug > 5)
 		printf("tri: %i groudFF %f DeltaFF = %f area = %f \n", realdest, groudFF,
 				deltaff, destri->area);
 #endif
-
-	/**********************************************************
-	  If destined triangle is smooth enough, then calculate
-	  radioisity, or split it.
-	 **********************************************************/
-	if (deltaff < DeltaFFLimit)
-	{
-		CalRadiosity(srctri, destri, ff);
-		return;
-	}
 	/**********************************************************
 	  Allocate children triangle space for destri
 	 **********************************************************/
-	t1ID = AllocTriangle();
+	int t1ID = AllocTriangle();
 	t1 = &TriStore[t1ID];
-	t2ID = AllocTriangle();
+	int t2ID = AllocTriangle();
 	t2 = &TriStore[t2ID];
 #ifdef _DEBUG
 	if (Debug > 5)
@@ -317,19 +303,20 @@ void Shade(TrianglePtr srctri, int logsrc, TrianglePtr destri, int logdest, int 
 #endif
 
 	/* find longest edge to split */
-	maxlength = 0.0;
-	for (int v = 0; v < 3; v++)
+	int destedge = 0;
 	{
-		VectorTo(destri->p[v], destri->p[(v + 1) % 3], l);
-		length = l[0] * l[0] + l[1] * l[1] + l[2] * l[2];
-		if (maxlength < length)
-		{
-			maxlength = length;
-			destedge = v;
+		float maxlength = 0.0;
+		for (int v = 0; v < 3; v++) {
+			VectorTo(destri->p[v], destri->p[(v + 1) % 3], l);
+			float length = norm2(l);
+			if (maxlength < length) {
+				maxlength = length, destedge = v;
+			}
 		}
 	}
 
-	neighborID = destri->neighbor[destedge];
+	int neighborID = destri->neighbor[destedge];
+	int n1ID, n2ID;
 	PartitionDestination(destri, t1, t2, destedge);
 
 	t1->neighbor[1] = n1ID = destri->neighbor[(destedge + 2) % 3];
@@ -364,84 +351,83 @@ void Shade(TrianglePtr srctri, int logsrc, TrianglePtr destri, int logdest, int 
 	SetNeighborToMe(n2ID, realdest, t2ID);
 	t1->neighbor[0] = t2ID;
 	t2->neighbor[2] = t1ID;
-
+	
+	if (neighborID < 0)
+		return ;
 	/**********************************************************
 	  There is a neighbor adjacent to the splitted edbg
 	 **********************************************************/
-	if (neighborID >= 0)
+	neighbortri = &TriStore[neighborID];
+	int t3ID = AllocTriangle();
+	t3 = &TriStore[t3ID];
+	int t4ID = AllocTriangle();
+	t4 = &TriStore[t4ID];
+	int neighboredge = 0;
+	/* find which edge adjacent to destri triangle */
+	for (int v = 0; v < 3; v++)
 	{
-		neighbortri = &TriStore[neighborID];
-		t3ID = AllocTriangle();
-		t3 = &TriStore[t3ID];
-		t4ID = AllocTriangle();
-		t4 = &TriStore[t4ID];
+		if (neighbortri->neighbor[v] == realdest)
+			neighboredge = v;
+	}
 
-		/* find which edge adjacent to destri triangle */
+	if (neighborID < realdest)
+	{
+		/*
+		 * neighbor triangle had been shaded, then "unshade
+		 * it"
+		 */
+		SubtractVector(neighbortri->accB[0], neighbortri->deltaaccB[0]);
+		SubtractVector(neighbortri->accB[1], neighbortri->deltaaccB[1]);
+		SubtractVector(neighbortri->accB[2], neighbortri->deltaaccB[2]);
+	}
+	PartitionDestination(neighbortri, t3, t4, neighboredge);
+
+	t3->neighbor[1] = n1ID = neighbortri->neighbor[(neighboredge + 2) % 3];
+	t4->neighbor[1] = n2ID = neighbortri->neighbor[(neighboredge + 1) % 3];
+
+	if (neighbortri->parent == neighborID)
+	{
+		neighbortri->parent = -1;	/* set to logical
+									 * triangle */
+	}
+	else
+	{
+		*neighbortri = TriStore[t4ID];
+		t4 = neighbortri;
+		t4ID = neighborID;
+		FreeTriangle();	  /* release */
+	}
+
+	SetNeighborToMe(n1ID, neighborID, t3ID);
+	SetNeighborToMe(n2ID, neighborID, t4ID);
+	t3->neighbor[0] = t4ID;
+	t4->neighbor[2] = t3ID;
+
+	if (destri->p[destedge] == neighbortri->p[neighboredge])
+	{
+		t1->neighbor[2] = t3ID;
+		t3->neighbor[2] = t1ID;
+		t2->neighbor[0] = t4ID;
+		t4->neighbor[0] = t2ID;
+	}
+	else
+	{
+		t1->neighbor[2] = t4ID;
+		t4->neighbor[0] = t1ID;
+		t2->neighbor[0] = t3ID;
+		t3->neighbor[2] = t2ID;
+	}
+
+	if (t4ID < realdest)
+	{
+		/*
+		 * t4 replace it's parent, reshade it for delay
+		 * shading correct.
+		 */
 		for (int v = 0; v < 3; v++)
-		{
-			if (neighbortri->neighbor[v] == realdest)
-				neighboredge = v;
-		}
-
-		if (neighborID < realdest)
-		{
-			/*
-			 * neighbor triangle had been shaded, then "unshade
-			 * it"
-			 */
-			SubtractVector(neighbortri->accB[0], neighbortri->deltaaccB[0]);
-			SubtractVector(neighbortri->accB[1], neighbortri->deltaaccB[1]);
-			SubtractVector(neighbortri->accB[2], neighbortri->deltaaccB[2]);
-		}
-		PartitionDestination(neighbortri, t3, t4, neighboredge);
-
-		t3->neighbor[1] = n1ID = neighbortri->neighbor[(neighboredge + 2) % 3];
-		t4->neighbor[1] = n2ID = neighbortri->neighbor[(neighboredge + 1) % 3];
-
-		if (neighbortri->parent == neighborID)
-		{
-			neighbortri->parent = -1;	/* set to logical
-										 * triangle */
-		}
-		else
-		{
-			*neighbortri = TriStore[t4ID];
-			t4 = neighbortri;
-			t4ID = neighborID;
-			FreeTriangle();	  /* release */
-		}
-
-		SetNeighborToMe(n1ID, neighborID, t3ID);
-		SetNeighborToMe(n2ID, neighborID, t4ID);
-		t3->neighbor[0] = t4ID;
-		t4->neighbor[2] = t3ID;
-
-		if (destri->p[destedge] == neighbortri->p[neighboredge])
-		{
-			t1->neighbor[2] = t3ID;
-			t3->neighbor[2] = t1ID;
-			t2->neighbor[0] = t4ID;
-			t4->neighbor[0] = t2ID;
-		}
-		else
-		{
-			t1->neighbor[2] = t4ID;
-			t4->neighbor[0] = t1ID;
-			t2->neighbor[0] = t3ID;
-			t3->neighbor[2] = t2ID;
-		}
-
-		if (t4ID < realdest)
-		{
-			/*
-			 * t4 replace it's parent, reshade it for delay
-			 * shading correct.
-			 */
-			for (int v = 0; v < 3; v++)
-				/* ff[v] = AdaptCalFF(CalFF(srctri, logsrc, t4, logdest, t4->p[v]), srctri,
-				   logsrc, t4, logdest, t4->p[v]); */
-				ff[v] = CalFF(srctri, logsrc, t4, logdest, t4->p[v]);
-			CalRadiosity(srctri, t4, ff);
-		}
-	}				  /* end of if (neighborID >=0 */
-}				  /* end of Shade() */
+			/* ff[v] = AdaptCalFF(CalFF(srctri, logsrc, t4, logdest, t4->p[v]), srctri,
+			   logsrc, t4, logdest, t4->p[v]); */
+			ff[v] = CalFF(srctri, logsrc, t4, logdest, t4->p[v]);
+		CalRadiosity(srctri, t4, ff);
+	}
+}
