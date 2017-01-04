@@ -437,7 +437,7 @@
 
 
     function handleKeys() {
-        if (currentlyPressedKeys[87]) {
+		if (currentlyPressedKeys[87]) {
             // Page Up
             eyeview.z -= 0.20;
         }
@@ -445,17 +445,21 @@
             // Page Down
             eyeview.z += 0.20;
         }
-        if (currentlyPressedKeys[45]) {
+        if (currentlyPressedKeys[65]) {
             // Insert
-            eyeview.x -= 1.00;
+            eyeview.x -= 0.20;
         }
-        if (currentlyPressedKeys[46]) {
+        if (currentlyPressedKeys[68]) {
             // Delete
-            eyeview.x += 1.00;
+            eyeview.x += 0.20;
         }
-        if (currentlyPressedKeys[36]) {
+        if (currentlyPressedKeys[81]) {
             // Home
-            eyeview.y -= 1.00;
+            eyeview.y -= 0.20;
+        }
+        if (currentlyPressedKeys[69]) {
+            // End
+            eyeview.y += 0.20;
         }
         if (currentlyPressedKeys[35]) {
             // End
