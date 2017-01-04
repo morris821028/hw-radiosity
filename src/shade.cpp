@@ -3,14 +3,23 @@
 #include "rad.h"
 #include "raycast.h"
 #include "shade.h"
+#include "config.h"
 #define RefRatio	(0.5)
+
+/* Helper */
 #define FreeTriangle()  (trinum)--
 // #define AllocTriangle() (trinum)++
 
 extern int Debug;
 
 static int AllocTriangle(void) { 
+	static int firstFlag = 1;
 	if (trinum == MaxTri) { 
+		if (firstFlag) {
+			fprintf(stderr, "\n**** Max Triangle exceed : %i ***\n", trinum);
+			firstFlag = 0;
+		}
+		return -1;
 		fprintf(stderr, "\n**** Max Triangle exceed : %i ***\n", trinum);
 		exit(-1); 
 	}
@@ -233,11 +242,9 @@ static inline void CalRadiosity(TrianglePtr srctri, TrianglePtr destri, float ff
 	}				  /* for each vertex */
 }
 
-
-
-void Shade(TrianglePtr srctri, int logsrc, TrianglePtr destri, int logdest, int realdest)
+int Shade(TrianglePtr srctri, int logsrc, TrianglePtr destri, int logdest, int realdest)
 {
-	float ff[3], ff2[3], ffs, deltaff;
+	float ff[3],ffs, deltaff;
 	TrianglePtr t1, t2, t3, t4, neighbortri;
 	Vector l;
 
@@ -247,9 +254,12 @@ void Shade(TrianglePtr srctri, int logsrc, TrianglePtr destri, int logdest, int 
 	// #pragma omp parallel for
 	for (int v = 0; v < 3; v++)
 	{
-		/*      ff[v] = AdaptCalFF(CalFF(srctri, logsrc, destri, logdest, destri->p[v]),
-				srctri, logsrc, destri, logdest, destri->p[v]); */
+#ifdef ADAPT
+		ff[v] = AdaptCalFF(CalFF(srctri, logsrc, destri, logdest, destri->p[v]),
+				srctri, logsrc, destri, logdest, destri->p[v]);
+#else
 		ff[v] = CalFF(srctri, logsrc, destri, logdest, destri->p[v]);
+#endif
 	}
 
 	/**********************************************************
@@ -257,22 +267,28 @@ void Shade(TrianglePtr srctri, int logsrc, TrianglePtr destri, int logdest, int 
 	 **********************************************************/
 	if (destri->area < AreaLimit) {
 		CalRadiosity(srctri, destri, ff);
-		return;
+		return 0;
 	}
 
 	float groudFF = (ff[0] + ff[1] + ff[2]) / 3.0;
-	/* ffs = AdaptCalFF(CalFF(srctri, logsrc, destri, logdest, destri->c),
-	   srctri, logsrc, destri, logdest, destri->c); */
+#ifdef ADAPT
+	ffs = AdaptCalFF(CalFF(srctri, logsrc, destri, logdest, destri->c),
+			srctri, logsrc, destri, logdest, destri->c);
+#else
 	ffs = CalFF(srctri, logsrc, destri, logdest, destri->c);
+#endif
 	if ((deltaff = ffabs(groudFF - ffs)) < DeltaFFLimit) {
 		int samplenum = (int)(destri->area / SampleArea);
 		for (int v = 0; v < samplenum; v++)
 		{
 			Vector temp;
 			groudFF = GetPointInTriangle(destri, temp, ff);
-			/*      ffs = AdaptCalFF(CalFF(srctri, logsrc, destri, logdest, temp),
-					srctri, logsrc, destri, logdest, temp); */
+#ifdef ADAPT
+			ffs = AdaptCalFF(CalFF(srctri, logsrc, destri, logdest, temp),
+					srctri, logsrc, destri, logdest, temp);
+#else
 			ffs = CalFF(srctri, logsrc, destri, logdest, temp);
+#endif
 			if ((deltaff = ffabs(groudFF - ffs)) > DeltaFFLimit)
 				break;
 		}
@@ -282,7 +298,7 @@ void Shade(TrianglePtr srctri, int logsrc, TrianglePtr destri, int logdest, int 
 		 **********************************************************/
 		if (deltaff < DeltaFFLimit) {
 			CalRadiosity(srctri, destri, ff);
-			return;
+			return 0;
 		}
 	}
 #ifdef _DEBUG
@@ -290,12 +306,17 @@ void Shade(TrianglePtr srctri, int logsrc, TrianglePtr destri, int logdest, int 
 		printf("tri: %i groudFF %f DeltaFF = %f area = %f \n", realdest, groudFF,
 				deltaff, destri->area);
 #endif
+	int replaceFlag = 0;
 	/**********************************************************
 	  Allocate children triangle space for destri
 	 **********************************************************/
 	int t1ID = AllocTriangle();
-	t1 = &TriStore[t1ID];
 	int t2ID = AllocTriangle();
+	if (t1ID < 0 || t2ID < 0) {
+		CalRadiosity(srctri, destri, ff);
+		return 0;
+	}
+	t1 = &TriStore[t1ID];
 	t2 = &TriStore[t2ID];
 #ifdef _DEBUG
 	if (Debug > 5)
@@ -335,32 +356,41 @@ void Shade(TrianglePtr srctri, int logsrc, TrianglePtr destri, int logdest, int 
 		t2 = destri;
 		t2ID = realdest;
 		FreeTriangle();		  /* release memory */
+		replaceFlag = 1;
 
 		/*
 		 * t2 replace it's parent, reshade it for delay shading
 		 * correct.
 		 */
-		/* ff2[0] = AdaptCalFF(CalFF(srctri, logsrc, t2, logdest, t2->p[0]), srctri,
-		   logsrc, t2, logdest, t2->p[0]); */
+#ifndef ROLLBACK
+		float ff2[3];
+#ifdef ADAPT
+		ff2[0] = AdaptCalFF(CalFF(srctri, logsrc, t2, logdest, t2->p[0]), srctri,
+		   logsrc, t2, logdest, t2->p[0]);
+#else
 		ff2[0] = CalFF(srctri, logsrc, t2, logdest, t2->p[0]);
+#endif
 		ff2[1] = ff[(destedge + 1) % 3];
 		ff2[2] = ff[(destedge + 2) % 3];
 		CalRadiosity(srctri, t2, ff2);
+#endif
 	}
 	SetNeighborToMe(n1ID, realdest, t1ID);
 	SetNeighborToMe(n2ID, realdest, t2ID);
 	t1->neighbor[0] = t2ID;
 	t2->neighbor[2] = t1ID;
-	
+
 	if (neighborID < 0)
-		return ;
+		return replaceFlag;
 	/**********************************************************
 	  There is a neighbor adjacent to the splitted edbg
 	 **********************************************************/
 	neighbortri = &TriStore[neighborID];
 	int t3ID = AllocTriangle();
-	t3 = &TriStore[t3ID];
 	int t4ID = AllocTriangle();
+	if (t3ID < 0 || t4ID < 0)
+		return 0;
+	t3 = &TriStore[t3ID];
 	t4 = &TriStore[t4ID];
 	int neighboredge = 0;
 	/* find which edge adjacent to destri triangle */
@@ -424,10 +454,15 @@ void Shade(TrianglePtr srctri, int logsrc, TrianglePtr destri, int logdest, int 
 		 * t4 replace it's parent, reshade it for delay
 		 * shading correct.
 		 */
-		for (int v = 0; v < 3; v++)
-			/* ff[v] = AdaptCalFF(CalFF(srctri, logsrc, t4, logdest, t4->p[v]), srctri,
-			   logsrc, t4, logdest, t4->p[v]); */
+		for (int v = 0; v < 3; v++) {
+#ifdef ADAPT
+			ff[v] = AdaptCalFF(CalFF(srctri, logsrc, t4, logdest, t4->p[v]), srctri,
+					logsrc, t4, logdest, t4->p[v]); 
+#else
 			ff[v] = CalFF(srctri, logsrc, t4, logdest, t4->p[v]);
+#endif
+		}
 		CalRadiosity(srctri, t4, ff);
 	}
+	return replaceFlag;
 }

@@ -1,7 +1,7 @@
 #ifndef _SHADE_H
 #define _SHADE_H
 
-void Shade(TrianglePtr srctri, int logsrc, TrianglePtr destri, int logdest, int realdest);
+int Shade(TrianglePtr srctri, int logsrc, TrianglePtr destri, int logdest, int realdest);
 float CalFF(TrianglePtr srctri, int logsrc, TrianglePtr destri, int logdest, Vector p);
 #endif
 

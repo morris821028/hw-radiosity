@@ -13,7 +13,8 @@
 #include "shade.h"
 #include "vector.h"
 #include "report.h"
-
+#include "config.h"
+#include <omp.h>
 #define DEBUG3x
 #define MAX_OPTION  7
 
@@ -122,8 +123,7 @@ void ReadTriangle(FILE * fp)
   Always write output.
   0 is final.
  **********************************************************/
-	void
-PrintOut(char *fname, int loop)
+void PrintOut(char *fname, int loop)
 {
 	int i;
 	TrianglePtr tp;
@@ -183,8 +183,7 @@ PrintOut(char *fname, int loop)
 }
 
 
-	void
-init(FILE * fp)
+void init(FILE * fp)
 {
 
 	ReadTriangle(fp);
@@ -316,54 +315,39 @@ void InitRad(void)
 }
 
 
-	int
-MaxDeltaRad(void)
+int MaxDeltaRad(void)
 {
-	int i, maxi(0);
-	float maxt, maxta, total, totala;
-	TrianglePtr tp;
-
-	maxta = maxt = 0.0;
-	/* maxi = -1; */
-	for (i = 0; i < trinum; i++)
+	int maxIdx = -1;
 	{
-		tp = &TriStore[i];
-		/**********************************************************
-		  Check if logical triangle.
-		 **********************************************************/
-		if (tp->parent < 0)
-			continue;
+		float maxDelta = 0.f, maxArea = 0.f;
+		for (int i = 0; i < trinum; i++) {
+			TrianglePtr tp = &TriStore[i];
+			if (tp->parent < 0)
+				continue;
+			/**********************************************************
+			  logical triangle
+			 **********************************************************/
 
-		total = TriStore[i].deltaB[0] + TriStore[i].deltaB[1] + TriStore[i].deltaB[2];
-		totala = total * TriStore[i].area;
-
-		/*
-		 * if (totala > maxta) { maxi = i; maxt = total; maxta =
-		 * totala; }
-		 */
-
-		if (total > maxt)
-		{
-			maxi = i;
-			maxt = total;
-			maxta = totala;
+			float delta = tp->deltaB[0] + tp->deltaB[1] + tp->deltaB[2];
+			float dE = delta * tp->area;
+			if (delta > maxDelta && delta > ConvergeLimit) {
+				maxIdx = i;
+				maxDelta = delta, maxArea = dE;
+			}
 		}
-	}				  /* for (i = ... */
-
-	if (Debug)
-	{
-		printf("------------------------\n");
-		printf("MaxDeltaRad--maxt = %f\n", maxt);
-		printf("MaxDeltaRad--maxta= %f\n", maxta);
+#ifdef _DEBUG
+		if (Debug) {
+			printf("------------------------\n");
+			printf("MaxDeltaRad--maxDelta = %f\n", maxDelta);
+			printf("MaxDeltaRad--maxArea  = %f\n", maxArea);
+		}
+#endif
 	}
-	if (maxt < ConvergeLimit)
-		return -1;
-	return maxi;
+	return maxIdx;
 }
 
 
-	void
-DoRadiosity(char *fname)
+void DoRadiosity(char *fname)
 {
 	int physrc, logsrc, phydest, logdest;
 	int loop;
@@ -401,7 +385,12 @@ DoRadiosity(char *fname)
 					|| destri->accB[2][2] < 255.0)
 			{
 				logdest = destri->parent;
+#ifdef ROLLBACK
+				if (Shade(srctri, logsrc, destri, logdest, phydest))
+					phydest--;
+#else
 				Shade(srctri, logsrc, destri, logdest, phydest);
+#endif
 			}
 		}			  /* for each tri */
 
@@ -420,11 +409,8 @@ DoRadiosity(char *fname)
 
 
 
-	int
-ProcessOption(int argc, char *argv[])
+int ProcessOption(int argc, char *argv[])
 {
-	int i, j;
-
 	if (argc < 3)
 	{
 		fprintf(stderr, "Usage: %s [-dascfl] ifile ofile\n", argv[0]);
@@ -438,8 +424,9 @@ ProcessOption(int argc, char *argv[])
 
 		exit(1);
 	}
-	for (i = 1; i < argc - 2; i++)
-		for (j = 0; j < MAX_OPTION; j++)
+	int i;
+	for (i = 1; i < argc - 2; i++) {
+		for (int j = 0; j < MAX_OPTION; j++) {
 			if (*argv[i] == '-')
 			{
 				if (!strcmp(argv[i], option[j]))
@@ -497,15 +484,17 @@ ProcessOption(int argc, char *argv[])
 					}		  /* end of switch */
 				}		  /* end of if (!strcmp... */
 			}			  /* end of if (argv[i]... */
-
+		}
+	}
 	return i;
 }
 
 
 
-	int
-main(int argc, char *argv[])
+int main(int argc, char *argv[])
 {
+	const int P = 5;
+	omp_set_num_threads(P);
 	int i;
 	float start[2], end[2];
 	FILE *fin;

@@ -3,11 +3,11 @@
 #
 
 CXX=g++
-CFLAG=-O2 -std=c++11 -pg -msse -Wall -Iinclude
-#CFLAG=-O2 -std=c++11 -msse -Wall -Iinclude
+CFLAG=-O2 -fopenmp -std=c++11 -pg -msse -Wall -Iinclude -D_DEBUG
+#CFLAG=-O2 -fopenmp -std=c++11 -msse -Wall -Iinclude
 
 OBJECTS=shade.o raycast.o report.o
-HEADERS=./include/rad.h ./include/raycast.h  ./include/report.h  ./include/shade.h  ./include/vector.h
+HEADERS=./include/rad.h ./include/raycast.h ./include/report.h ./include/shade.h ./include/vector.h ./include/config.h
 
 .PHONY: all clean
 
