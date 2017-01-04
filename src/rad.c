@@ -355,7 +355,7 @@ void DoRadiosity(char *fname)
 
 	InitRad();
 #ifdef PRE_PARTITION 
-	AdaptivePartitionTriangles();
+	PrePartitionTriangles();
 #endif
 	for (loop = 1;; loop++)
 	{

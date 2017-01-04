@@ -442,7 +442,7 @@ int Shade(TrianglePtr srctri, int logsrc, TrianglePtr destri, int logdest, int r
 	return replaceFlag;
 }
 
-void AdaptivePartitionTriangles()
+void PrePartitionTriangles()
 {
     for (int it = 0; it < 10; it++) {
         int has = 0;
