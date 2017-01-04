@@ -1,6 +1,9 @@
 #!/bin/bash
 
+MODELNAME=room.tri
+
 make
-./rad model/blocks.tri output/test
+mkdir -p output
+./rad model/${MODELNAME} output/test
 cp output/test.fin ./demo
-./demo/tri2json -i ./demo/test.fin -o ./demo/public/asset/test.json --format COLOR
+cd ./demo && ./tri2json -i test.fin -o test.json --format COLOR

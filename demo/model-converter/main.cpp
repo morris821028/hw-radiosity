@@ -1,24 +1,27 @@
 #include <bits/stdc++.h>
 using namespace std;
 
-const float eps = 1e-6;
+const double eps = 1e-6;
 
 struct Tri {
 	// foreground color, background color: RGB
-	float fc[3], bc[3];
+	double fc[3], bc[3];
 	// 3 vertex position: x, y, z
-	float vxyz[3][3];
+	double vxyz[3][3];
 	// the normal vector of vertex: x, y, z
-	float nxyz[3][3];
+	double nxyz[3][3];
 };
 
 struct Pt {
-    float x, y, z;
-    Pt(float x = 0.f, float y = 0.f, float z = 0.f):
+    double x, y, z;
+    Pt(double x = 0.f, double y = 0.f, double z = 0.f):
     	x(x), y(y), z(z) {}	
     bool operator==(const Pt &a) const {
     	return fabs(x - a.x) < eps && fabs(y - a.y) < eps && fabs(z - a.z) < eps;
     }
+	Pt operator-(const Pt &a) const {
+		return Pt(x-a.x, y-a.y, z-a.z);
+	}
     bool operator!=(const Pt &a) const {
     	return !(a == *this);
     }
@@ -37,6 +40,20 @@ struct Pt {
 	Pt extendMax(const Pt &b) const {
 		return Pt(max(x, b.x), max(y, b.y), max(z, b.z));
 	}
+	Pt cross(const Pt &vb) const {
+		Pt r;
+		r.x = y * vb.z - vb.y * z;
+		r.y = z * vb.x - vb.z * x;
+		r.z = x * vb.y - vb.x * y;
+		return r;
+	}
+	double length() const {
+		return sqrt(x*x+y*y+z*z);
+	}
+	void normalize() {
+		double l = length();
+		x /= l, y /= l, z /= l;
+	}
 };
 
 void readLine(string line, float f[]) {
@@ -48,7 +65,7 @@ void readLine(string line, float f[]) {
 
 void writeColorfulJson(string ofileName, vector<Tri> &A) {
 	ofstream fout(ofileName);
-	if (!fout) {
+	if (fout.fail()) {
 		fprintf(stderr, "Output file path failed");
 		exit(1);
 	}
@@ -131,11 +148,12 @@ void writeColorfulJson(string ofileName, vector<Tri> &A) {
 	fout << "]" << endl;
 
 	fout << "}" << endl;
-
+	fprintf(stderr, "Model-Converter Success\n");
 }
 void readColorfulTriangle(string ifileName, string ofileName) {
 	ifstream fin(ifileName);
-
+	if (fin.fail())
+		assert(false && "Input file not exited");
 	// read triangle
 	string objName;
 	vector<Tri> A;
@@ -169,22 +187,55 @@ void readColorfulTriangle(string ifileName, string ofileName) {
 			else
 				hasRight = true, rightPt = tmpPt;
 		}
+		// cross product
+		{
+			Pt v[3];
+			for (int i = 0; i < 3; i++)
+				v[i] = Pt(t.vxyz[i][0], t.vxyz[i][1], t.vxyz[i][2]);
+			Pt vab, vac;
+			vab = v[1] - v[0];
+			vac = v[2] - v[0];
+			Pt normal = vab.cross(vac);
+			normal.normalize();
+			for (int i = 0; i < 3; i++)
+				t.nxyz[i][0] = normal.x, t.nxyz[i][1] = normal.y, t.nxyz[i][2] = normal.z;
+		}
 		// store triangle
 		A.push_back(t);
+		// duplicate back triangle
+		{
+			for (int i = 0; i < 3; i++)
+				swap(t.bc[i], t.fc[i]);
+			float gap = 1e-8;
+			for (int i = 0; i < 3; i++) {
+				t.vxyz[i][0] -= t.nxyz[i][0]*gap;
+				t.vxyz[i][1] -= t.nxyz[i][1]*gap;
+				t.vxyz[i][2] -= t.nxyz[i][2]*gap;
+			}
+			for (int i = 0; i < 3; i++) {
+				t.nxyz[i][0] = -t.nxyz[i][0];
+				t.nxyz[i][1] = -t.nxyz[i][1];
+				t.nxyz[i][2] = -t.nxyz[i][2];
+			}
+		//	A.push_back(t);
+		}
 	}
 
 	// normalize bounding box 1 x 1 x 1
-	const float maxSide = max(max(rightPt.x-leftPt.x, rightPt.y-leftPt.y), rightPt.z-leftPt.z);
-	const float scale = 1.f / maxSide;
-	const float view_scale = 10.f;
-	for (int i = 0; i < A.size(); i++) {
-		float left[3] = {leftPt.x, leftPt.y, leftPt.z};
-		for (int j = 0; j < 3; j++)	 {
-			for (int k = 0; k < 3; k++) {
-				A[i].vxyz[j][k] -= left[k];
-				A[i].vxyz[j][k] *= scale;
-				A[i].vxyz[j][k] -= 0.5f;
-				A[i].vxyz[j][k] *= view_scale;
+	if (true)
+	{
+		const double maxSide = max(max(rightPt.x-leftPt.x, rightPt.y-leftPt.y), rightPt.z-leftPt.z);
+		const double scale = 1.f / maxSide;
+		const double view_scale = 10.f;
+		for (int i = 0; i < A.size(); i++) {
+			double left[3] = {leftPt.x, leftPt.y, leftPt.z};
+			for (int j = 0; j < 3; j++)	 {
+				for (int k = 0; k < 3; k++) {
+					A[i].vxyz[j][k] -= left[k];
+					A[i].vxyz[j][k] *= scale;
+					A[i].vxyz[j][k] -= 0.5f;
+					A[i].vxyz[j][k] *= view_scale;
+				}
 			}
 		}
 	}

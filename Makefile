@@ -3,7 +3,7 @@
 #
 
 CXX=g++
-CFLAG=-O2 -fopenmp -std=c++11 -pg -msse -Wall -Iinclude -D_DEBUG
+CFLAG=-O2 -fopenmp -std=c++11 -pg -g3 -msse -Wall -Iinclude -D_DEBUG
 #CFLAG=-O2 -fopenmp -std=c++11 -msse -Wall -Iinclude
 
 OBJECTS=shade.o raycast.o report.o
