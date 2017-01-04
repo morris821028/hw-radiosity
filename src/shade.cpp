@@ -172,57 +172,43 @@ float AdaptCalFF(float ff, TrianglePtr srctri, int logsrc, TrianglePtr destri, i
 
 static void PartitionDestination(TrianglePtr s, TrianglePtr t1, TrianglePtr t2, int edge)
 {
-
-	Vector p;
-	register int i0, i1, i2;
+	int i0, i1, i2;
 
 	i0 = edge;			  /* edge is the one being splited */
 	i1 = (++edge) % 3;
 	i2 = (++edge) % 3;
+	{
+		Vector p;
+		AverageVector(s->p[i0], s->p[i1], p);
+		CopyVector(p, t1->p[0]);
+		CopyVector(s->p[i2], t1->p[1]);
+		CopyVector(s->p[i0], t1->p[2]);
+		CopyVector(s->n, t1->n);
+		CopyVector(s->Frgb, t1->Frgb);
+		CopyVector(s->deltaB, t1->deltaB);
+		CalCenter(t1);
 
-	AverageVector(s->p[i0], s->p[i1], p);
-	CopyVector(p, t1->p[0]);
-	CopyVector(p, t2->p[0]);
+		CopyVector(p, t2->p[0]);
+		CopyVector(s->p[i1], t2->p[1]);
+		CopyVector(s->p[i2], t2->p[2]);
+		CopyVector(s->n, t2->n);
+		CopyVector(s->Frgb, t2->Frgb);
+		CopyVector(s->deltaB, t2->deltaB);
+		CalCenter(t2);
+		// CopyVector(s->Brgb, t1->Brgb); CopyVector(s->Brgb, t2->Brgb);
+	}
+	{
+		Vector p;
+		AverageVector(s->accB[i0], s->accB[i1], p);
+		CopyVector(p, t1->accB[0]);
+		CopyVector(s->accB[i2], t1->accB[1]);
+		CopyVector(s->accB[i0], t1->accB[2]);
 
-	CopyVector(s->p[i2], t1->p[1]);
-	CopyVector(s->p[i1], t2->p[1]);
-
-	CopyVector(s->p[i0], t1->p[2]);
-	CopyVector(s->p[i2], t2->p[2]);
-
-	/**********************************************************
-	  Triangle center, area, normal.
-	 **********************************************************/
-	CalCenter(t1);		  /* center point */
-	CalCenter(t2);
-	t1->area = t2->area = (s->area / 2.0);	/* area */
-	CopyVector(s->n, t1->n);	  /* copy normal from original triangle */
-	CopyVector(s->n, t2->n);
-
-	/**********************************************************
-	  Process other member.  F dB aB
-	 **********************************************************/
-	CopyVector(s->Frgb, t1->Frgb);
-	CopyVector(s->Frgb, t2->Frgb);
-	/*
-	 * CopyVector(s->Brgb, t1->Brgb); CopyVector(s->Brgb, t2->Brgb);
-	 */
-
-	CopyVector(s->deltaB, t1->deltaB);
-	CopyVector(s->deltaB, t2->deltaB);
-
-	AverageVector(s->accB[i0], s->accB[i1], p);
-	CopyVector(p, t1->accB[0]);
-	CopyVector(p, t2->accB[0]);
-
-	CopyVector(s->accB[i2], t1->accB[1]);
-	CopyVector(s->accB[i1], t2->accB[1]);
-
-	CopyVector(s->accB[i0], t1->accB[2]);
-	CopyVector(s->accB[i2], t2->accB[2]);
-	/**********************************************************
-	  parent.
-	 **********************************************************/
+		CopyVector(p, t2->accB[0]);
+		CopyVector(s->accB[i1], t2->accB[1]);
+		CopyVector(s->accB[i2], t2->accB[2]);
+	}
+	t1->area = t2->area = (s->area / 2.0);
 	t1->parent = t2->parent = s->parent;
 }
 
@@ -366,7 +352,7 @@ int Shade(TrianglePtr srctri, int logsrc, TrianglePtr destri, int logdest, int r
 		float ff2[3];
 #ifdef ADAPT
 		ff2[0] = AdaptCalFF(CalFF(srctri, logsrc, t2, logdest, t2->p[0]), srctri,
-		   logsrc, t2, logdest, t2->p[0]);
+				logsrc, t2, logdest, t2->p[0]);
 #else
 		ff2[0] = CalFF(srctri, logsrc, t2, logdest, t2->p[0]);
 #endif
