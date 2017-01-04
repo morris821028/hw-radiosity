@@ -225,11 +225,12 @@ void InitRad(void)
 				(tp->Brgb[2] == 255))
 		{
 			InitVector(tp->deltaB, 0.0, 0.0, 0.0);
+			float scale = 5.0;
 			for (v = 0; v < 3; v++)
 			{
-				tp->accB[v][0] = tp->Brgb[0];
-				tp->accB[v][1] = tp->Brgb[1];
-				tp->accB[v][2] = tp->Brgb[2];
+				tp->accB[v][0] = tp->Brgb[0] * scale;
+				tp->accB[v][1] = tp->Brgb[1] * scale;
+				tp->accB[v][2] = tp->Brgb[2] * scale;
 
 				tp->deltaB[0] += 100 * tp->accB[v][0] / 3;
 				tp->deltaB[1] += 100 * tp->accB[v][1] / 3;
@@ -346,7 +347,6 @@ int MaxDeltaRad(void)
 	return maxIdx;
 }
 
-
 void DoRadiosity(char *fname)
 {
 	int physrc, logsrc, phydest, logdest;
@@ -354,6 +354,9 @@ void DoRadiosity(char *fname)
 	TrianglePtr destri, srctri;
 
 	InitRad();
+#ifdef PRE_PARTITION 
+	AdaptivePartitionTriangles();
+#endif
 	for (loop = 1;; loop++)
 	{
 		/* find the patch with the largest deltaB */
