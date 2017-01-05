@@ -158,6 +158,7 @@ void PrintOut(char *fname, int loop)
 		/**********************************************************
 		  Triangle key word.
 		 **********************************************************/
+#ifdef OLD_FORMAT
 		fprintf(fout, "Triangle \n");
 		fprintf(fout, "%f %f %f ",
 				tp->p[0][0], tp->p[0][1], tp->p[0][2]);
@@ -167,6 +168,20 @@ void PrintOut(char *fname, int loop)
 		fprintf(fout, "%f %f %f ",
 				tp->p[2][0], tp->p[2][1], tp->p[2][2]);
 		fprintf(fout, "%i %i %i 0 0 0 \n", (int)tp->accB[2][0], (int)tp->accB[2][1], (int)tp->accB[2][2]);
+#else
+		
+		fprintf(fout, "Triangle \n");
+		float frontColor[3] = {};
+		for (int j = 0; j < 3; j++) {
+			for (int k = 0; k < 3; k++)
+				frontColor[j] += tp->accB[k][j];
+			frontColor[j] /= 3;
+		}
+		fprintf(fout, "%.0f %.0f %.0f %.0f %.0f %0.f\n", frontColor[0], frontColor[1], frontColor[2], 0.0, 0.0, 0.0);
+		for (int j = 0; j < 3; j++) {
+			fprintf(fout, "%f %f %f %f %f %f\n", tp->p[j][0], tp->p[j][1], tp->p[j][2], tp->n[0], tp->n[1], tp->n[2]);
+		}
+#endif
 	}
 
 	fclose(fout);
@@ -225,7 +240,7 @@ void InitRad(void)
 				(tp->Brgb[2] == 255))
 		{
 			InitVector(tp->deltaB, 0.0, 0.0, 0.0);
-			float scale = 5.0;
+			float scale = 10.0;
 			for (v = 0; v < 3; v++)
 			{
 				tp->accB[v][0] = tp->Brgb[0] * scale;

@@ -448,7 +448,7 @@ void PrePartitionTriangles()
         int has = 0;
         for (int i = 0; i < trinum; i++) {
             TrianglePtr tp = &TriStore[i];
-            if (tp->area < 1000)
+            if (tp->area < 50)
                 continue;
             has = 1;
             int destedge;
