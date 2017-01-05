@@ -22,7 +22,7 @@ int Debug = 0;
 float AreaLimit = 5.0;
 float SampleArea = -1.0;	       /* model dependent or user-defined */
 float ConvergeLimit = 1200.0;
-float DeltaFFLimit = 0.001;
+float DeltaFFLimit = 0.000005;
 int WriteIteration = 20;
 int CompressResult = 0;
 Triangle TriStore[MaxTri];
@@ -176,6 +176,7 @@ void PrintOut(char *fname, int loop)
 			for (int k = 0; k < 3; k++)
 				frontColor[j] += tp->accB[k][j];
 			frontColor[j] /= 3;
+			frontColor[j] = max(min(frontColor[j], 255.0), 0.0);
 		}
 		fprintf(fout, "%.0f %.0f %.0f %.0f %.0f %0.f\n", frontColor[0], frontColor[1], frontColor[2], 0.0, 0.0, 0.0);
 		for (int j = 0; j < 3; j++) {
@@ -240,7 +241,7 @@ void InitRad(void)
 				(tp->Brgb[2] == 255))
 		{
 			InitVector(tp->deltaB, 0.0, 0.0, 0.0);
-			float scale = 10.0;
+			float scale = 1.0;
 			for (v = 0; v < 3; v++)
 			{
 				tp->accB[v][0] = tp->Brgb[0] * scale;

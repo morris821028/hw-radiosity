@@ -5,7 +5,7 @@
 
 #define MaxLevel	6
 
-#define MaxTri		250000
+#define MaxTri		1000000
 #define MaxTriList	200000
 #define MaxTreeNode	20000
 #define MaxTriPerNode   10

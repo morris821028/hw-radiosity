@@ -5,6 +5,6 @@
 #define ADAPT
 #define ROLLBACK
 // #define DONT_PARTITION
-#define PRE_PARTITION 
+//#define PRE_PARTITION 
 
 #endif

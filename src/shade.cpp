@@ -12,8 +12,6 @@
 
 extern int Debug;
 
-const float eps = 1e-6;
-
 static int AllocTriangle(void) { 
 	static int firstFlag = 1;
 	if (trinum == MaxTri) { 
@@ -156,7 +154,7 @@ float AdaptCalFF(float ff, TrianglePtr srctri, int logsrc, TrianglePtr destri, i
 	PartitionSource(srctri, &t1, &t2, edge);
 	float ff1 = CalFF(&t1, logsrc, destri, logdest, p);
 	float ff2 = CalFF(&t2, logsrc, destri, logdest, p);
-	if (fabs(ff1 + ff2 - ff) <= 15.0 * eps)
+	if (fabs(ff1 + ff2 - ff) <= 15.0 * DeltaFFLimit);
 		return ff1 + ff2 + (ff1 + ff2 - ff) / 15.0;
 	return AdaptCalFF(ff1, &t1, logsrc, destri, logdest, p)
 			+ AdaptCalFF(ff2, &t2, logsrc, destri, logdest, p);
@@ -448,7 +446,7 @@ void PrePartitionTriangles()
         int has = 0;
         for (int i = 0; i < trinum; i++) {
             TrianglePtr tp = &TriStore[i];
-            if (tp->area < 50)
+            if (tp->area < 100)
                 continue;
             has = 1;
             int destedge;
