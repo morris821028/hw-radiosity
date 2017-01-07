@@ -1,13 +1,15 @@
 #!/bin/bash
 
-#MODELNAME=room.tri
-MODELNAME=blocks.tri
+MODELNAME=room.tri
+#MODELNAME=blocks.tri
+#MODELNAME=hall.tri
 
 make
 mkdir -p output
 rm output/*
-time -p ./rad -f 0.0001 -t 20000 -i 2 model/${MODELNAME} output/test
-cd ./demo && ./run.sh
+#time -p ./rad -l 10 -t 1000000 -i 50 model/${MODELNAME} output/test
+time -p ./rad -c 800 -l 10 -t 30000 -i 1 model/${MODELNAME} output/test
+cd ./demo && ./run.sh test.fin
 
 #cp output/test.fin ./demo
 #cd ./demo && make

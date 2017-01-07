@@ -1,5 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <algorithm>
+using namespace std;
 #include "rad.h"
 #include "raycast.h"
 #include "shade.h"
@@ -225,15 +227,8 @@ static inline void CalRadiosity(TrianglePtr srctri, TrianglePtr destri, float ff
 inline int PartitionTriangleAndStore(TrianglePtr srcTri, int realSrc, int &destedge, 
 		TrianglePtr &t1, TrianglePtr &t2, TrianglePtr &t3, TrianglePtr &t4, bool &reshadeNeighbor) {
 	reshadeNeighbor = false;
-	/*****************************************************
-	  find longest edge to split -> create acute triangle
-	 ******************************************************/
-	int t1ID = AllocTriangle();
-	int t2ID = AllocTriangle();
-	if (t1ID < 0 || t2ID < 0)
+	if (trinum+10 >= MaxTri || trinum+10 >= TriangleLimit || srcTri->area < 1e-8)
 		return -1;
-	t1 = &TriStore[t1ID];
-	t2 = &TriStore[t2ID];
 	destedge = 0;
 	{
 		float maxlength = 0.0;
@@ -247,7 +242,19 @@ inline int PartitionTriangleAndStore(TrianglePtr srcTri, int realSrc, int &deste
 		}
 		if (maxlength < 1)
 			return -1;
+		int neighborID = srcTri->neighbor[destedge];
+		if (neighborID >= 0 && TriStore[neighborID].area < 1e-1)
+			return -1;
 	}
+
+	reshadeNeighbor = false;
+	/*****************************************************
+	  find longest edge to split -> create acute triangle
+	 ******************************************************/
+	int t1ID = AllocTriangle();
+	int t2ID = AllocTriangle();
+	t1 = &TriStore[t1ID];
+	t2 = &TriStore[t2ID];
 	int replaceFlag = 0;	
 	int neighborID = srcTri->neighbor[destedge];
 	int n1ID, n2ID;
@@ -281,8 +288,6 @@ inline int PartitionTriangleAndStore(TrianglePtr srcTri, int realSrc, int &deste
 
 	int t3ID = AllocTriangle();
 	int t4ID = AllocTriangle();
-	if (t3ID < 0 || t4ID < 0)
-		return replaceFlag;
 	t3 = &TriStore[t3ID];
 	t4 = &TriStore[t4ID];
 
@@ -442,11 +447,12 @@ int Shade(TrianglePtr srctri, int logsrc, TrianglePtr destri, int logdest, int r
 
 void PrePartitionTriangles()
 {
-    for (int it = 0; it < 10; it++) {
+	float threadhold = 100;
+    for (int it = 0; it < 100; it++) {
         int has = 0;
         for (int i = 0; i < trinum; i++) {
             TrianglePtr tp = &TriStore[i];
-            if (tp->area < 100)
+            if (tp->area < threadhold)
                 continue;
             has = 1;
             int destedge;
@@ -454,8 +460,9 @@ void PrePartitionTriangles()
             TrianglePtr t1, t2, t3, t4;
             PartitionTriangleAndStore(tp, i, destedge, t1, t2, t3, t4, reshadeNeighbor);
         }
-        if (!has)
-            break;
+        if (!has) {
+			threadhold = max(threadhold/2, 0.001f);
+		}
     }
     fprintf(stderr, "MoreTriangle %d\n", trinum);
 }

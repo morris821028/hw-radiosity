@@ -1,6 +1,7 @@
 #!/bin/bash
 
-FILENAME=test.fin
+#FILENAME=test.fin
+FILENAME=${1}
 
 make
 cp ../output/${FILENAME} .

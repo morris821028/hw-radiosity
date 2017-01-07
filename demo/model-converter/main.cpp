@@ -70,7 +70,11 @@ struct Pt {
 void readLine(string line, double f[]) {
 	stringstream sin(line);
 	for (int i = 0; i < 6; i++) {
-		assert(sin >> f[i]);
+		if (sin >> f[i]) {
+		} else {
+			fprintf(stderr, "%s\n", line.c_str());
+			exit(1);
+		}
 	}
 }
 

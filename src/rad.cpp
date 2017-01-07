@@ -16,6 +16,7 @@
 #include "config.h"
 #include <omp.h>
 #include <algorithm>
+#include <set>
 using namespace std;
 #define DEBUG3x
 #define MAX_OPTION  9
@@ -27,7 +28,7 @@ float ConvergeLimit = 1200.0;
 float DeltaFFLimit = 0.000005;
 float LightScale = 1.0;
 int TriangleLimit = 1000000;
-int WriteIteration = 1;
+int WriteIteration = 10;
 int CompressResult = 0;
 Triangle TriStore[MaxTri];
 int TriStorePtr;
@@ -181,6 +182,8 @@ void PrintOut(char *fname, int loop)
 				frontColor[j] += tp->accB[k][j];
 			frontColor[j] /= 3;
 			frontColor[j] = max(min(frontColor[j], 255.0f), 0.0f);
+			if (isnan(frontColor[j]))
+				frontColor[j] = 0;
 		}
 		fprintf(fout, "%.0f %.0f %.0f %.0f %.0f %0.f\n", frontColor[0], frontColor[1], frontColor[2], 0.0, 0.0, 0.0);
 		for (int j = 0; j < 3; j++) {
@@ -199,6 +202,11 @@ void PrintOut(char *fname, int loop)
 			puts("OK");
 		else
 			puts("Failed");
+	}
+	{
+		char cmd[128] = "cd ./demo && ./run.sh ../";
+		strcat(cmd, fn);
+		system(cmd);
 	}
 }
 
@@ -340,7 +348,7 @@ int MaxDeltaRad(void)
 {
 	int maxIdx = -1;
 	{
-		float maxDelta = 0.f, maxArea = 0.f;
+		float maxDelta = 0.f;
 		for (int i = 0; i < trinum; i++) {
 			TrianglePtr tp = &TriStore[i];
 			if (tp->parent < 0)
@@ -350,83 +358,148 @@ int MaxDeltaRad(void)
 			 **********************************************************/
 
 			float delta = tp->deltaB[0] + tp->deltaB[1] + tp->deltaB[2];
-			float dE = delta * tp->area;
+			// float dE = delta * tp->area;
 			if (delta > maxDelta && delta > ConvergeLimit) {
 				maxIdx = i;
-				maxDelta = delta, maxArea = dE;
+				maxDelta = delta;
 			}
 		}
 #ifdef _DEBUG
 		if (Debug) {
 			printf("------------------------\n");
 			printf("MaxDeltaRad--maxDelta = %f\n", maxDelta);
-			printf("MaxDeltaRad--maxArea  = %f\n", maxArea);
+//			printf("MaxDeltaRad--maxArea  = %f\n", maxArea);
 		}
 #endif
 	}
 	return maxIdx;
 }
+vector<int> listCanditate()
+{
+	vector< pair<float, int> > C;
+	for (int i = 0; i < trinum; i++) {
+		TrianglePtr tp = &TriStore[i];
+		if (tp->parent < 0)
+			continue;
+		float delta = tp->deltaB[0] + tp->deltaB[1] + tp->deltaB[2];
+		if (delta > ConvergeLimit)
+			C.push_back(make_pair(delta, i));
+	}
+	sort(C.begin(), C.end());
+	vector<int> ret;
+	size_t n = min(((int) C.size()+4)/5, 1000);
+	for (size_t i = 0, j = C.size()-1; i < n; i++, j--)
+		ret.push_back(C[j].second);
+	return ret;
+}
 
+static int parallelRadiosity() {
+	vector<int> C(listCanditate());
+	if (C.size() == 0)
+		return 0;
+	int prev = 0;
+	set<int> R;
+	for (auto e : C)
+		R.insert(e);
+	do {
+		int n = trinum;
+#pragma omp parallel for
+		for (int i = prev; i < n; i++) {
+			TrianglePtr desTri, srcTri;
+			desTri = &TriStore[i];
+			if (desTri->parent < 0)
+				continue;
+			if (R.count(i))
+				continue;
+			if (desTri->accB[0][0] < 255.0 || desTri->accB[0][1] < 255.0
+					|| desTri->accB[0][2] < 255.0 || desTri->accB[1][0] < 255.0
+					|| desTri->accB[1][1] < 255.0 || desTri->accB[1][2] < 255.0
+					|| desTri->accB[2][0] < 255.0 || desTri->accB[2][1] < 255.0
+					|| desTri->accB[2][2] < 255.0) {
+				int phydes = i;
+				int logdes = desTri->parent;
+				for (size_t j = 0; j < C.size(); j++) {
+					srcTri = &TriStore[C[j]];
+					int physrc = C[j];
+					int logsrc = srcTri->parent;
+					if (physrc == phydes)
+						continue;
+					Shade(srcTri, logsrc, desTri, logdes, phydes);
+				}
+			}
+		}
+		prev = n;
+		if (n == trinum)
+			break;
+	} while (true);
+	for (size_t j = 0; j < C.size(); j++) {
+		TrianglePtr srcTri = &TriStore[C[j]];
+		InitVector(srcTri->deltaB, 0.0, 0.0, 0.0);
+	}
+	return 1;
+}
+static int serialRadiosity() {
+	int physrc, logsrc, phydest, logdest;
+	TrianglePtr destri, srctri;
+	// find the patch with the largest deltaB
+	physrc = MaxDeltaRad();
+
+	if (physrc < 0)
+		return 0;
+	// calculate the radiosity for other patch
+	srctri = &TriStore[physrc];
+	logsrc = srctri->parent;
+
+	for (phydest = 0; phydest < trinum; phydest++)
+	{
+		if (physrc == phydest)
+			continue;
+		destri = &TriStore[phydest];
+		if (destri->parent < 0)
+			continue;
+		if (destri->accB[0][0] < 255.0 || destri->accB[0][1] < 255.0
+				|| destri->accB[0][2] < 255.0 || destri->accB[1][0] < 255.0
+				|| destri->accB[1][1] < 255.0 || destri->accB[1][2] < 255.0
+				|| destri->accB[2][0] < 255.0 || destri->accB[2][1] < 255.0
+				|| destri->accB[2][2] < 255.0)
+		{
+			logdest = destri->parent;
+#ifdef ROLLBACK
+			if (Shade(srctri, logsrc, destri, logdest, phydest))
+				phydest--;
+#else
+			Shade(srctri, logsrc, destri, logdest, phydest);
+#endif
+		}
+	}
+
+	// reset the deltaB of patch i
+	InitVector(srctri->deltaB, 0.0, 0.0, 0.0);
+	return 1;
+}
 void DoRadiosity(char *fname)
 {
-	int physrc, logsrc, phydest, logdest;
-	int loop;
-	TrianglePtr destri, srctri;
-
 	InitRad();
 #ifdef PRE_PARTITION 
 	PrePartitionTriangles();
 #endif
-	for (loop = 1;; loop++)
 	{
-		/* find the patch with the largest deltaB */
-		physrc = MaxDeltaRad();
-
-		if (Debug)
+		int loop;
+		for (loop = 1; ; loop++)
 		{
-			printf("Doing iteraton %i for patch %d\n", loop, physrc);
+			//if (loop % WriteIteration == 0)
+			fprintf(stderr, "Loop %d\n", loop);
+			if (parallelRadiosity() == 0)
+				break;
+			//if (serialRadiosity() == 0)
+			//	break;
+			if (loop % WriteIteration == 0)
+				PrintOut(fname, loop);
+			if (Debug)
+				printf("In this iteration, there are %i triangles.\n", trinum);
 		}
-		if (physrc < 0)
-			/* solution is good enough */
-			break;
-
-		/* calculate the radiosity for other patch */
-		srctri = &TriStore[physrc];
-		logsrc = srctri->parent;
-
-		for (phydest = 0; phydest < trinum; phydest++)
-		{
-			if (physrc == phydest)
-				continue;
-			destri = &TriStore[phydest];
-			if (destri->parent < 0)
-				continue;
-			if (destri->accB[0][0] < 255.0 || destri->accB[0][1] < 255.0
-					|| destri->accB[0][2] < 255.0 || destri->accB[1][0] < 255.0
-					|| destri->accB[1][1] < 255.0 || destri->accB[1][2] < 255.0
-					|| destri->accB[2][0] < 255.0 || destri->accB[2][1] < 255.0
-					|| destri->accB[2][2] < 255.0)
-			{
-				logdest = destri->parent;
-#ifdef ROLLBACK
-				if (Shade(srctri, logsrc, destri, logdest, phydest))
-					phydest--;
-#else
-				Shade(srctri, logsrc, destri, logdest, phydest);
-#endif
-			}
-		}			  /* for each tri */
-
-		/* reset the deltaB of patch i */
-		InitVector(srctri->deltaB, 0.0, 0.0, 0.0);
-
-		if (loop % WriteIteration == 0)
-			PrintOut(fname, loop);
-
-		if (Debug)
-			printf("In this iteration, there are %i triangles.\n", trinum);
+		printf("#Iterations %d\n", loop);
 	}
-	printf("total iterations are %d\n", loop);
 	PrintOut(fname, 0);
 }
 
@@ -493,7 +566,7 @@ int ProcessOption(int argc, char *argv[])
 
 int main(int argc, char *argv[])
 {
-	const int P = 5;
+	const int P = 20;
 	omp_set_num_threads(P);
 	int i;
 	float start[2], end[2];
