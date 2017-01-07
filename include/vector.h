@@ -45,8 +45,8 @@ typedef float 	Matrix[4][4];
 
 
 #define  Round(x) ( (x)>=0? (int)((x)+0.5): (int)((x)-0.5) )
-#define  max(x,y) ( (x)>(y)?(x):(y) )
-#define  min(x,y) ( (x)<(y)?(x):(y) )
+// #define  max(x,y) ( (x)>(y)?(x):(y) )
+// #define  min(x,y) ( (x)<(y)?(x):(y) )
 #define PrintV(t) (printf("%f %f %f\n",(t)[0],(t)[1],(t)[2]))
 #define PrintVI(t) (printf("%i %i %i\n",(t)[0],(t)[1],(t)[2]))
 

@@ -1,4 +1,9 @@
 #!/bin/bash
 
-cp ../output/test.fin .
-./tri2json -i test.fin -o test.json --format COLOR
+FILENAME=test.fin
+
+make
+cp ../output/${FILENAME} .
+./tri2json -i ${FILENAME} -o test.json --format COLOR
+mv test.json public/asset/
+

@@ -2,7 +2,7 @@
 #define _RAYCAST_H
 
 void BuildTree(void);
-int RayHitted(Vector p, Vector v, int otri);
+int RayHitted(Vector p, Vector v, int otri, int ttri);
 
 #endif
 

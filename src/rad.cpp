@@ -15,15 +15,19 @@
 #include "report.h"
 #include "config.h"
 #include <omp.h>
+#include <algorithm>
+using namespace std;
 #define DEBUG3x
-#define MAX_OPTION  7
+#define MAX_OPTION  9
 
 int Debug = 0;
 float AreaLimit = 5.0;
 float SampleArea = -1.0;	       /* model dependent or user-defined */
 float ConvergeLimit = 1200.0;
 float DeltaFFLimit = 0.000005;
-int WriteIteration = 20;
+float LightScale = 1.0;
+int TriangleLimit = 1000000;
+int WriteIteration = 1;
 int CompressResult = 0;
 Triangle TriStore[MaxTri];
 int TriStorePtr;
@@ -31,7 +35,7 @@ int TriStorePtr;
 int trinum;
 Vector G0, G1;
 
-const char option[MAX_OPTION][3] = {"-d", "-a", "-s", "-c", "-f", "-l", "-z"};
+const char option[MAX_OPTION][3] = {"-d", "-a", "-s", "-c", "-f", "-l", "-z", "-t", "-i"};
 
 
 /* 
@@ -176,7 +180,7 @@ void PrintOut(char *fname, int loop)
 			for (int k = 0; k < 3; k++)
 				frontColor[j] += tp->accB[k][j];
 			frontColor[j] /= 3;
-			frontColor[j] = max(min(frontColor[j], 255.0), 0.0);
+			frontColor[j] = max(min(frontColor[j], 255.0f), 0.0f);
 		}
 		fprintf(fout, "%.0f %.0f %.0f %.0f %.0f %0.f\n", frontColor[0], frontColor[1], frontColor[2], 0.0, 0.0, 0.0);
 		for (int j = 0; j < 3; j++) {
@@ -219,11 +223,10 @@ void init(FILE * fp)
  */
 void InitRad(void)
 {
-	int i, j, v, n;
 	float minarea = 100000000.0, maxarea = 0.0;
 	TrianglePtr tp, tn;
 
-	for (i = 0; i < trinum; i++)
+	for (int i = 0; i < trinum; i++)
 	{
 		tp = &TriStore[i];
 		/**************************************************
@@ -237,12 +240,11 @@ void InitRad(void)
 		/**********************************************************
 		  light source.
 		 **********************************************************/
-		if ((tp->Brgb[0] == 255) || (tp->Brgb[1] == 255) ||
-				(tp->Brgb[2] == 255))
+		if (isLightSource(tp))
 		{
 			InitVector(tp->deltaB, 0.0, 0.0, 0.0);
-			float scale = 1.0;
-			for (v = 0; v < 3; v++)
+			float scale = LightScale;
+			for (int v = 0; v < 3; v++)
 			{
 				tp->accB[v][0] = tp->Brgb[0] * scale;
 				tp->accB[v][1] = tp->Brgb[1] * scale;
@@ -255,7 +257,7 @@ void InitRad(void)
 		}
 		else
 		{
-			for (v = 0; v < 3; v++)
+			for (int v = 0; v < 3; v++)
 				InitVector(tp->accB[v], 0.0, 0.0, 0.0);
 			CopyVector(tp->accB[0], tp->deltaB);
 		}
@@ -263,16 +265,16 @@ void InitRad(void)
 		/**********************************************************
 		  Initialize neighbor triangle.
 		 **********************************************************/
-		for (j = 0; j < trinum; j++)
+		for (int j = 0; j < trinum; j++)
 		{
 			if (j == i)
 				continue;
 			tn = &TriStore[j];
 
 
-			for (v = 0; v < 3; v++)
+			for (int v = 0; v < 3; v++)
 			{
-				for (n = 0; n < 3; n++)
+				for (int n = 0; n < 3; n++)
 				{
 					if ((tp->p[v][0] == tn->p[n][0]) &&
 							(tp->p[v][1] == tn->p[n][1]) &&
@@ -328,6 +330,8 @@ void InitRad(void)
 	printf("       ConvergeLimit   %f\n", ConvergeLimit);
 	printf("       DeltaFFLimit    %f\n", DeltaFFLimit);
 	printf("       WriteIteration: %d\n", WriteIteration);
+	printf("       TriangleLimit:  %d\n", TriangleLimit);
+	printf("       LightScale:     %f\n", LightScale);
 	printf("Init Rad Over!!\n");
 }
 
@@ -416,7 +420,7 @@ void DoRadiosity(char *fname)
 		/* reset the deltaB of patch i */
 		InitVector(srctri->deltaB, 0.0, 0.0, 0.0);
 
-		if ((loop % WriteIteration) == 0)
+		if (loop % WriteIteration == 0)
 			PrintOut(fname, loop);
 
 		if (Debug)
@@ -439,6 +443,8 @@ int ProcessOption(int argc, char *argv[])
 		fprintf(stderr, "       -c ConvergeLimit : default %f\n", ConvergeLimit);
 		fprintf(stderr, "       -f DeltaFFLimit  : default %f\n", DeltaFFLimit);
 		fprintf(stderr, "       -l WriteIteration: default %d\n", WriteIteration);
+		fprintf(stderr, "       -t TriangleLimit : default %d\n", TriangleLimit);
+		fprintf(stderr, "       -i LightScale    : default %f\n", LightScale);
 		fprintf(stderr, "	-z gzip output file. Default = false.\n");
 
 		exit(1);
@@ -497,6 +503,21 @@ int ProcessOption(int argc, char *argv[])
 						case 6:
 							CompressResult = 1;
 							break;
+						case 7:
+							if ((sscanf(argv[++i], "%d", &TriangleLimit)) != 1)
+							{
+								fprintf(stderr, "TriangleLimit !\n");
+								exit(1);
+							}
+							break;
+						case 8:
+							if ((sscanf(argv[++i], "%f", &LightScale)) != 1)
+							{
+								fprintf(stderr, "LightScale Read Error !\n");
+								exit(1);
+							}
+							break;
+
 						default:
 							fprintf(stderr, "Invaild Option : %s", argv[i]);
 							exit(1);

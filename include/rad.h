@@ -35,6 +35,9 @@ typedef struct {
 	int	list;
 } TreeNode;
 
+inline int isLightSource(TrianglePtr tp) {
+	return tp->Brgb[0] == 255 || tp->Brgb[1] == 255 || tp->Brgb[2] == 255;
+}
 
 extern Triangle	TriStore[MaxTri];
 extern int	TriStorePtr;
@@ -56,3 +59,5 @@ extern float	AreaLimit;
 extern float	SampleArea;
 extern float	ConvergeLimit;
 extern float	DeltaFFLimit;
+extern float	LightScale;
+extern int	TriangleLimit;

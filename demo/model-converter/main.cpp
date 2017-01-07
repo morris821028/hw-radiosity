@@ -10,6 +10,17 @@ struct Tri {
 	double vxyz[3][3];
 	// the normal vector of vertex: x, y, z
 	double nxyz[3][3];
+	double area() const {
+		double v[3], v1[3], v2[3];
+		for (int i = 0; i < 3; i++) {
+			v1[i] = vxyz[1][i] - vxyz[0][i];
+			v2[i] = vxyz[2][i] - vxyz[0][i];
+		}
+		v[0] = v1[1] * v2[2] - v2[1] * v1[2];
+		v[1] = v1[2] * v2[0] - v2[2] * v1[0];
+		v[2] = v1[0] * v2[1] - v2[0] * v1[1];
+		return sqrt(v[0]*v[0]+v[1]*v[1]+v[2]*v[2])/2;
+	}
 };
 
 struct Pt {
@@ -56,98 +67,97 @@ struct Pt {
 	}
 };
 
-void readLine(string line, float f[]) {
+void readLine(string line, double f[]) {
 	stringstream sin(line);
-	for (int i = 0; i < 9; i++) {
+	for (int i = 0; i < 6; i++) {
 		assert(sin >> f[i]);
 	}
 }
 
 void writeColorfulJson(string ofileName, vector<Tri> &A) {
-	ofstream fout(ofileName);
-	if (fout.fail()) {
+	FILE *fout = fopen(ofileName.c_str(), "w");
+	if (fout == NULL) {
 		fprintf(stderr, "Output file path failed");
 		exit(1);
 	}
 	// output json format
-	fout << "{" << endl;
+	fprintf(fout, "{\n");
 
-	fout << "\t\"colorful\": true," << endl;
+	fprintf(fout, "\t\"colorful\": true,\n");
 
-	fout << "\t\"vertexPositions\" : [";
+	fprintf(fout, "\t\"vertexPositions\" : [");
 	for (int i = 0, sz = 0; i < A.size(); i++) {
 		Tri t = A[i];
 		for (int j = 0; j < 3; j++) {
 			if (sz)
-				fout << ",";
+				fprintf(fout, ",");
 			sz++;
-			fout << t.vxyz[j][0] << "," << t.vxyz[j][1] << "," << t.vxyz[j][2];
+			fprintf(fout, "%g,%g,%g", t.vxyz[j][0], t.vxyz[j][1], t.vxyz[j][2]);
 		}
 	}
-	fout << "]," << endl;
+	fprintf(fout, "],\n");
 
-	fout << "\t\"vertexNormals\" : [";
+	fprintf(fout, "\t\"vertexNormals\" : [");
 	for (int i = 0, sz = 0; i < A.size(); i++) {
 		Tri t = A[i];
 		for (int j = 0; j < 3; j++) {
 			if (sz)
-				fout << ",";
+				fprintf(fout, ",");
 			sz++;
-			fout << t.nxyz[j][0] << "," << t.nxyz[j][1] << "," << t.nxyz[j][2];
+			fprintf(fout, "%g,%g,%g", t.nxyz[j][0], t.nxyz[j][1], t.nxyz[j][2]);
 		}
 	}
-	fout << "]," << endl;
+	fprintf(fout, "],\n");
 
-	fout << "\t\"vertexTextureCoords\" : [";
+	fprintf(fout, "\t\"vertexTextureCoords\" : [");
 	for (int i = 0, sz = 0; i < A.size(); i++) {
 		Tri t = A[i];
 		for (int j = 0; j < 3; j++) {
 			if (sz)
-				fout << ",";
+				fprintf(fout, ",");
 			sz++;
-			fout << 0.5f << "," << 0.5f << "," << 0.5f;
+			fprintf(fout, "1,1,1");
 		}
 	}
 
-	fout << "]," << endl;
+	fprintf(fout, "],\n");
 
-	fout << "\t\"vertexFrontColors\" : [";
+	fprintf(fout, "\t\"vertexFrontColors\" : [");
 	for (int i = 0, sz = 0; i < A.size(); i++) {
 		Tri t = A[i];
 		for (int j = 0; j < 3; j++) {
 			if (sz)
-				fout << ",";
+				fprintf(fout, ",");
 			sz++;
-			fout << t.fc[0]/255.0 << "," << t.fc[1]/255.0 << "," << t.fc[2]/255.0;
+			fprintf(fout, "%g,%g,%g", t.fc[0]/255.0, t.fc[1]/255.0, t.fc[2]/255.0);
 		}
 	}
-	fout << "]," << endl;
+	fprintf(fout, "],\n");
 
-	fout << "\t\"vertexBackColors\" : [";
+	fprintf(fout, "\t\"vertexBackColors\" : [");
 	for (int i = 0, sz = 0; i < A.size(); i++) {
 		Tri t = A[i];
 		for (int j = 0; j < 3; j++) {
 			if (sz)
-				fout << ",";
+				fprintf(fout, ",");
 			sz++;
-			fout << t.bc[0]/255.0 << "," << t.bc[1]/255.0 << "," << t.bc[2]/255.0;
+			fprintf(fout, "%g,%g,%g", t.bc[0]/255.0, t.bc[1]/255.0, t.bc[2]/255.0);
 		}
 	}
-	fout << "]," << endl;
+	fprintf(fout, "],\n");
 
-	fout << "\t\"indices\" : [";
+	fprintf(fout, "\t\"indices\" : [");
 	for (int i = 0, sz = 0; i < A.size(); i++) {
 		Tri t = A[i];
 		for (int j = 0; j < 3; j++) {
 			if (sz)
-				fout << ",";
-			fout << sz;
+				fprintf(fout, ",");
+			fprintf(fout, "%d", sz);
 			sz++;
 		}
 	}
-	fout << "]" << endl;
-
-	fout << "}" << endl;
+	fprintf(fout, "]\n");
+	fprintf(fout, "}\n");
 	fprintf(stderr, "Model-Converter Success\n");
 }
 void readColorfulTriangle(string ifileName, string ofileName) {
@@ -162,20 +172,23 @@ void readColorfulTriangle(string ifileName, string ofileName) {
 	while (getline(fin, objName)) {
 		assert(objName == "Triangle " && "Make sure all object triangle based");
 		string line;
-		float f[9];
+		double f[9];
 		Tri t;	
+
+		assert(getline(fin, line));
+		readLine(line, f);
+
+		for (int i = 0; i < 3; i++)
+			t.fc[i] = f[i], t.bc[i] = f[i+3];
+
 		// read vertex information
 		for (int i = 0; i < 3; i++) {
 			assert(getline(fin, line));
 			readLine(line, f);
-			for (int j = 0, k = 0; j < 3; j++, k++)
-				t.vxyz[i][k] = f[j];
-			for (int j = 3, k = 0; j < 6; j++, k++)
-				t.fc[k] = f[j];
-			for (int j = 6, k = 0; j < 9; j++, k++)
-				t.bc[k] = f[j];
-			for (int k = 0; k < 3; k++)
-				t.nxyz[i][k] = 0;
+			for (int j = 0; j < 3; j++) {
+				t.vxyz[i][j] = f[j];
+				t.nxyz[i][j] = f[j+3];
+			}
 			// extend boundary	
 			Pt tmpPt(t.vxyz[i][0], t.vxyz[i][1], t.vxyz[i][2]);
 			if (hasLeft)
@@ -186,19 +199,6 @@ void readColorfulTriangle(string ifileName, string ofileName) {
 				rightPt = rightPt.extendMax(tmpPt);
 			else
 				hasRight = true, rightPt = tmpPt;
-		}
-		// cross product
-		{
-			Pt v[3];
-			for (int i = 0; i < 3; i++)
-				v[i] = Pt(t.vxyz[i][0], t.vxyz[i][1], t.vxyz[i][2]);
-			Pt vab, vac;
-			vab = v[1] - v[0];
-			vac = v[2] - v[0];
-			Pt normal = vab.cross(vac);
-			normal.normalize();
-			for (int i = 0; i < 3; i++)
-				t.nxyz[i][0] = normal.x, t.nxyz[i][1] = normal.y, t.nxyz[i][2] = normal.z;
 		}
 		// store triangle
 		A.push_back(t);
@@ -225,20 +225,22 @@ void readColorfulTriangle(string ifileName, string ofileName) {
 	if (true)
 	{
 		const double maxSide = max(max(rightPt.x-leftPt.x, rightPt.y-leftPt.y), rightPt.z-leftPt.z);
-		const double scale = 1.f / maxSide;
 		const double view_scale = 10.f;
+		const double scale = view_scale / maxSide;
 		for (int i = 0; i < A.size(); i++) {
 			double left[3] = {leftPt.x, leftPt.y, leftPt.z};
 			for (int j = 0; j < 3; j++)	 {
 				for (int k = 0; k < 3; k++) {
 					A[i].vxyz[j][k] -= left[k];
 					A[i].vxyz[j][k] *= scale;
-					A[i].vxyz[j][k] -= 0.5f;
-					A[i].vxyz[j][k] *= view_scale;
+					A[i].vxyz[j][k] -= 0.5f * view_scale;
 				}
 			}
+			if (A[i].area() < eps)
+				fprintf(stderr, "[Warning] Triangle area is too small to show\n");
 		}
 	}
+	fprintf(stderr, "#Triangle %d\n", A.size());
 	// write 
 	writeColorfulJson(ofileName, A);
 }

@@ -43,10 +43,33 @@
         }
         return "";
     }
-
+	
+	function normalizeModel(model) {
+		var INF = 10000000;
+		var L = [INF, INF, INF], R = [-INF, -INF, -INF];
+		for (var i = 0; i < model.vertexPositions.length/3; i += 3) {
+			for (var j = 0; j < 3; j++) {
+				L[j] = Math.min(L[j], model.vertexPositions[i+j]);
+				R[j] = Math.max(R[j], model.vertexPositions[i+j]);
+			}
+		}
+		var maxSide = 0;
+		for (var i = 0; i < 3; i++)
+			maxSide = Math.max(maxSide, R[i] - L[i]);
+		var scale = 10 / maxSide;
+		console.log(maxSide + ", " + scale + ", " + model.vertexPositions.length/3/3);
+		for (var i = 0; i < model.vertexPositions.length/3; i += 3) {
+			for (var j = 0; j < 3; j++) {
+				model.vertexPositions[i+j] -= L[j];
+				model.vertexPositions[i+j] *= scale;
+				model.vertexPositions[i+j] -= 10 * 0.5;
+			}
+		}
+	}
     function loadTeapot() {
         var text = loadFile(modelName);
         teapotData = JSON.parse(text);
+//		normalizeModel(teapotData);
         return teapotData;
     }
     function loadShaderSource(vs_path, fs_path) {
@@ -503,9 +526,9 @@
         var selectShader = shader[document.querySelector('input[name="optionsShading"]:checked').value];
         drawSceneBegin();
         drawScene(selectShader, [0, 5, 10], [1, 1, 1]);
-        drawScene(shader['flat'], [-20, -15, -10], [0.5, 0.5, 0.5]);
-        drawScene(shader['gouraud'], [0, -15, -10], [0.5, 0.5, 0.5]);
-        drawScene(shader['phong'], [20, -15, -10], [0.5, 0.5, 0.5]);
+        // drawScene(shader['flat'], [-20, -15, -10], [0.5, 0.5, 0.5]);
+        // drawScene(shader['gouraud'], [0, -15, -10], [0.5, 0.5, 0.5]);
+        // drawScene(shader['phong'], [20, -15, -10], [0.5, 0.5, 0.5]);
         drawSceneEnd();
 
         animate();

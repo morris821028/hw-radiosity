@@ -13,8 +13,8 @@ HEADERS=./include/rad.h ./include/raycast.h ./include/report.h ./include/shade.h
 
 all: rad $(OBJECTS)
 
-rad: ./src/rad.c $(OBJECTS) $(HEADERS)
-	$(CXX) $(CFLAG) $(OBJECTS) ./src/rad.c -o rad -lm 
+rad: ./src/rad.cpp $(OBJECTS) $(HEADERS)
+	$(CXX) $(CFLAG) $(OBJECTS) ./src/rad.cpp -o rad -lm 
 
 shade.o: ./src/shade.cpp $(HEADERS)
 	$(CXX) $(CFLAG) -c ./src/shade.cpp

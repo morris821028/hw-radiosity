@@ -216,9 +216,11 @@ static int buildTree(vector<int> triangleIdxs, int level, Vector g0, Vector g1)
 
 void BuildTree(void)
 {
-	vector<int> triangleIdxs(trinum);
-	for (int i = 0; i < trinum; i++)
-		triangleIdxs[i] = i;
+	vector<int> triangleIdxs;
+	for (int i = 0; i < trinum; i++) {
+		TrianglePtr tp = &TriStore[i];
+		triangleIdxs.push_back(i);
+	}
 	TriListStorePtr = 0;
 
 	TreeNodeStorePtr = 0;
@@ -314,7 +316,7 @@ static int TriHitted(Vector p, Vector v, TrianglePtr tp, float *t_min)
 }
 
 
-static inline int TriListHitted(Vector p, Vector v, int storeIdx, int banIdx)
+static inline int TriListHitted(Vector p, Vector v, int storeIdx, int banIdx, int toTargetIdx)
 {
 	if (storeIdx < 0)
 		return -1;
@@ -325,13 +327,15 @@ static inline int TriListHitted(Vector p, Vector v, int storeIdx, int banIdx)
 	while ((tri_tmp = TriListStore[storeIdx++]) >= 0) {
 		if (tri_tmp == banIdx)
 			continue;
+//		if (isLightSource(&TriStore[tri_tmp]))
+//			return toTargetIdx;
 		if (TriHitted(p, v, &TriStore[tri_tmp], &t_min))
 			tri_idx = tri_tmp;
 	}
 	return tri_idx;
 }
 
-int RayHitted(Vector p, Vector v, int fromTriangleIdx)
+int RayHitted(Vector p, Vector v, int fromTriangleIdx, int toTargetIdx)
 {
 	float t = 0.f;
 	int triIdx;
@@ -348,7 +352,7 @@ int RayHitted(Vector p, Vector v, int fromTriangleIdx)
 			continue;
 		}
 		TreeNode &tmp = TreeNodeStore[currIdx];
-		if ((triIdx = TriListHitted(p, v, tmp.list, fromTriangleIdx)) >= 0)	{ // test the triangle in this cube
+		if ((triIdx = TriListHitted(p, v, tmp.list, fromTriangleIdx, toTargetIdx)) >= 0)	{ // test the triangle in this cube
 			return triIdx;
 		}
 		prevIdx = currIdx; 

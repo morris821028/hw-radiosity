@@ -14,7 +14,7 @@ extern int Debug;
 
 static int AllocTriangle(void) { 
 	static int firstFlag = 1;
-	if (trinum == MaxTri) { 
+	if (trinum == MaxTri || trinum == TriangleLimit) { 
 		if (firstFlag) {
 			fprintf(stderr, "\n**** Max Triangle exceed : %i ***\n", trinum);
 			firstFlag = 0;
@@ -114,7 +114,7 @@ static float CalFF(TrianglePtr srctri, int logsrc, TrianglePtr destri, int logde
 	// ff *= srctri->area / (norm2(dir) * PI);
 	if (ff <= 0.0)
 		return 0.0;
-	if (RayHitted(p, dir, logdest) == logsrc)
+	if (RayHitted(p, dir, logdest, logsrc) == logsrc)
 		return ff;
 	return 0.0;
 }
