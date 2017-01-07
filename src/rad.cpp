@@ -434,8 +434,7 @@ void DoRadiosity(char *fname)
 
 int ProcessOption(int argc, char *argv[])
 {
-	if (argc < 3)
-	{
+	if (argc < 3) {
 		fprintf(stderr, "Usage: %s [-dascfl] ifile ofile\n", argv[0]);
 		fprintf(stderr, "       -d debuglevel    : default %i\n", Debug);
 		fprintf(stderr, "       -a AreaLimit     : default %f\n", AreaLimit);
@@ -449,84 +448,45 @@ int ProcessOption(int argc, char *argv[])
 
 		exit(1);
 	}
-	int i;
-	for (i = 1; i < argc - 2; i++) {
+	for (int i = 1; i < argc - 2; i++) {
 		for (int j = 0; j < MAX_OPTION; j++) {
-			if (*argv[i] == '-')
-			{
-				if (!strcmp(argv[i], option[j]))
-				{
-					switch (j)
-					{
-						case 0:
-							if ((sscanf(argv[++i], "%d", &Debug)) != 1)
-							{
-								fprintf(stderr, "Debug Read Error !\n");
-								exit(1);
-							}
-							break;
-						case 1:
-							if ((sscanf(argv[++i], "%f", &AreaLimit)) != 1)
-							{
-								fprintf(stderr, "AreaLimit Read Error !\n");
-								exit(1);
-							}
-							break;
-						case 2:
-							if ((sscanf(argv[++i], "%f", &SampleArea)) != 1)
-							{
-								fprintf(stderr, "SampleArea Read Error !\n");
-								exit(1);
-							}
-							break;
-						case 3:
-							if ((sscanf(argv[++i], "%f", &ConvergeLimit)) != 1)
-							{
-								fprintf(stderr, "ConvergeLimit Read Error !\n");
-								exit(1);
-							}
-							break;
-						case 4:
-							if ((sscanf(argv[++i], "%f", &DeltaFFLimit)) != 1)
-							{
-								fprintf(stderr, "DeltaFFLimit Read Error !\n");
-								exit(1);
-							}
-							break;
-						case 5:
-							if ((sscanf(argv[++i], "%d", &WriteIteration)) != 1)
-							{
-								fprintf(stderr, "Debug WriteIteration Error !\n");
-								exit(1);
-							}
-							break;
-						case 6:
-							CompressResult = 1;
-							break;
-						case 7:
-							if ((sscanf(argv[++i], "%d", &TriangleLimit)) != 1)
-							{
-								fprintf(stderr, "TriangleLimit !\n");
-								exit(1);
-							}
-							break;
-						case 8:
-							if ((sscanf(argv[++i], "%f", &LightScale)) != 1)
-							{
-								fprintf(stderr, "LightScale Read Error !\n");
-								exit(1);
-							}
-							break;
-
-						default:
-							fprintf(stderr, "Invaild Option : %s", argv[i]);
-							exit(1);
-					}		  /* end of switch */
-				}		  /* end of if (!strcmp... */
-			}			  /* end of if (argv[i]... */
+			if (strcmp(argv[i], option[j]))
+				continue;
+			switch (j) {
+				case 0:
+					assert(sscanf(argv[++i], "%d", &Debug) == 1 && "Debug Error");
+					break;
+				case 1:
+					assert(sscanf(argv[++i], "%f", &AreaLimit) == 1 && "AreaLimit Error");
+					break;
+				case 2:
+					assert(sscanf(argv[++i], "%f", &SampleArea) == 1 && "SampleArea Error");
+					break;
+				case 3:
+					assert(sscanf(argv[++i], "%f", &ConvergeLimit) == 1 && "ConvergeLimit Error");
+					break;
+				case 4:
+					assert(sscanf(argv[++i], "%f", &DeltaFFLimit) == 1 && "DeltaFFLimit Error");
+					break;
+				case 5:
+					assert(sscanf(argv[++i], "%d", &WriteIteration) == 1 && "Debug WriteIteration Error");
+					break;
+				case 6:
+					CompressResult = 1;
+					break;
+				case 7:
+					assert(sscanf(argv[++i], "%d", &TriangleLimit) == 1 && "TriangleLimit Error");
+					break;
+				case 8:
+					assert(sscanf(argv[++i], "%f", &LightScale) == 1 && "LightScale Error");
+					break;
+				default:
+					fprintf(stderr, "Invaild Option : %s", argv[i]);
+					exit(1);
+			}		  /* end of switch */
 		}
 	}
-	return i;
+	return argc-2;
 }
 
 
