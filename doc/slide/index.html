@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>古古</title>
+    <meta charset="utf-8">
+    <style>
+      @import url(https://fonts.googleapis.com/css?family=Droid+Serif);
+      @import url(https://fonts.googleapis.com/css?family=Yanone+Kaffeesatz);
+      @import url(https://fonts.googleapis.com/css?family=Ubuntu+Mono:400,700,400italic);
+
+      body {
+        font-family: 'Droid Serif', 'Microsoft JhengHei';
+      }
+      h1, h2, h3 {
+        font-family: 'Yanone Kaffeesatz';
+        font-weight: 400;
+        margin-bottom: 0;
+      }
+      .remark-slide-content h1 { font-size: 4em; }
+      .remark-slide-content h2 { font-size: 3em; }
+      .remark-slide-content h3 { font-size: 2em; }
+      .remark-slide-content p { font-size: 1em; }
+      .footnote {
+        position: absolute;
+        bottom: 3em;
+      }
+      li p { line-height: 1.25em; }
+      .red { color: #fa0000; }
+      .large { font-size: 2em; }
+      a, a > code {
+        color: rgb(249, 38, 114);
+        text-decoration: none;
+      }
+      code {
+/*        background: #e7e8e2;*/
+        border-radius: 5px;
+      }
+      .remark-code, .remark-inline-code { font-family: 'Ubuntu Mono'; }
+      .remark-code-line-highlighted     { background-color: #373832; }
+      .pull-left {
+        float: left;
+        width: 47%;
+      }
+      .pull-right {
+        float: right;
+        width: 47%;
+      }
+      .pull-right ~ p {
+        clear: both;
+      }
+      #slideshow .slide .content code {
+        font-size: 0.8em;
+      }
+      #slideshow .slide .content pre code {
+        font-size: 0.9em;
+        padding: 15px;
+      }
+      .inverse {
+        background: #272822;
+        color: #777872;
+        text-shadow: 0 0 20px #333;
+      }
+      .inverse h1, .inverse h2 {
+        color: #f3f3f3;
+        line-height: 0.8em;
+		font-size: 2em;
+      }
+
+      /* Slide-specific styling */
+      #slide-inverse .footnote {
+        bottom: 12px;
+        left: 20px;
+      }
+      #slide-how .slides {
+        font-size: 2em;
+        position: absolute;
+        top:  151px;
+        right: 140px;
+      }
+      #slide-how .slides h3 {
+        margin-top: 0.2em;
+      }
+      #slide-how .slides .first, #slide-how .slides .second {
+        padding: 1px 20px;
+        height: 90px;
+        width: 120px;
+        -moz-box-shadow: 0 0 10px #777;
+        -webkit-box-shadow: 0 0 10px #777;
+        box-shadow: 0 0 10px #777;
+      }
+      #slide-how .slides .first {
+        background: #fff;
+        position: absolute;
+        top: 20%;
+        left: 20%;
+        z-index: 1;
+      }
+      #slide-how .slides .second {
+        position: relative;
+        background: #fff;
+        z-index: 0;
+      }
+
+      /* Two-column layout */
+      .left-column {
+        color: #777;
+        width: 45%;
+        height: 92%;
+		float: left;
+      }
+        .left-column h2:last-of-type, .left-column h3:last-child {
+          color: #000;
+        }
+      .right-column {
+        width: 45%;
+		float: right;
+      }
+    </style>
+  </head>
+  <body>
+    <textarea id="source">
+
+title: Radiosity
+class: center, middle
+
+# Paralleling Computing and Optimization Skills for Radiosity
+
+R04922067 楊翔雲 R04922133 古君葳
+
+國立台灣大學 資訊工程學研究所
+
+---
+
+## Introduction
+
+熱輻射算法公式 `\(B_i dA_i = E_i dA_i + R_i \int_j B_j F_{ji} dA_j\)`
+
+假設平面上有 `\(N\)` 個三角形，每一次迭代至少需要 `\(O(N^2)\)`，如果判定兩點之間是否能傳遞需要 `\(O(\log N)\)`，則會落入 `\(O(N^2 \log N)\)`
+
+### Form-Factor Computation ###
+
+其中佔據效能因素是 Form-Factor 估算，因此有像 Hemicube 之類的近似逼近，大幅度減少計算量，但投影回到原本物件上會失真。
+
+`\(F_{ij} \approx \int_{y \in A_j} \frac{\cos \theta_x \cos \theta_y}{\pi r^2} V(x, y) dA_y\)`
+
+---
+## Optimization
+
+### Improve I-cache Miss ###
+
+壓縮程式碼長度以改善 I-cache miss，因為大部分的初始化只會運行一次，不應該交錯在時常被呼叫的函數之間，指令載入效能才會提高，同時也要做好 Code Layout，就能改善執行效能。
+
+.left-column[
+```c
+x, y = compute(0)
+buildTree(x, y)
+x, y = compute(1)
+buildTree()
+x, y = compute(2)
+buildTree()
+x, y = compute(3)
+buildTree()
+...
+```
+] .right-column[
+
+```c
+for i from 0 to n
+    x, y = compute(i)
+    buildTree() 
+```
+]
+
+---
+
+### Improve Data Locality ###
+
+程式碼中使用 3D-DDA Line Algorithm/Bresenham's Line Algorithm 搭配 Octree，在找尋某個射線 `\(\vec{v} = p + t \cdot d\)` 與哪個最近三角形相交。
+
+* 只需要儲存葉節點代表的立方體中，所有可能相交的三角形編號
+* 移除掉中間產生的編號，讓每一次 access 的 cache-miss 下降
+
+然而，在 3D-DDA 中，我們需要反查找空間中一點 `\(p\)` 在哪一個葉節點中，藉由固定的長寬高切割長度，可以在 `\(O(1)\)` 時間內得知 `[i][j][k]` 各別的值。
+
+* 若限制大小，則建立 `[i][j][k]` 查找
+* 若自適應大小，則建立 hash 表查找
+* 根據實驗結果，效能並沒有改善，因為三角形個數過多導致命中機率過低。
+
+---
+
+### Short Circuit Design ###
+
+```cpp
+int CrossOver(TrianglePtr tri, Vector g0, Vector g1) {
+	for (xyz = 0; xyz < 3; xyz++) {
+		// front face project
+		// ...
+		if (!test())
+			return false;
+		// back face project
+		// ...
+		if (!test())
+			return false;
+	}
+	return true;
+}
+```
+
+判斷三角形與一個正交立方體是否相交，使用投影到二維空間中與一線段的交點是否皆存在。投影方法有 3 種 x-y, y-z, z-x，線段投影共有 2 種，共計 6 種情況。
+
+* 原先程式沒有做好短路設計，只要其中一種不符就應退出
+
+---
+
+### Clipping Algorithm ###
+
+我們實作課程中所描述的 Cohen–Sutherland Algorithm 降低 branch 次數，使用 bitwise 操作引出 SSE (Streaming SIMD Extensions)。
+
+* 儘管 compiler `-O2` 替我們優化，為減少 stack push/pop 的次數，實作時請不要使用的 procedure call，否則會慢上許多。
+
+```c
+int Clip(Vector p0, Vector p1, Vector g0, Vector g1, int x, int y) {
+	char mask1 = (p0[x] < g0[x])<<0 |
+		(p0[x] > g1[x])<<1 |
+		(p0[y] < g0[y])<<2 |
+		(p0[y] > g1[y])<<3 ;
+	char mask2 = (p1[x] < g0[x])<<0 |
+		(p1[x] > g1[x])<<1 |
+		(p1[y] < g0[y])<<2 |
+		(p1[y] > g1[y])<<3 ;
+	if (mask1&mask2)	
+		return false;
+	if (!(mask1|mask2))
+	return true;
+	// ... test
+}
+```
+
+---
+
+### Strength Reduction ###
+
+---
+
+## Parallel
+    </textarea>
+	<script src="http://gnab.github.io/remark/downloads/remark-latest.min.js" type="text/javascript"></script>
+    <script src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS_HTML&delayStartupUntil=configured" type="text/javascript"></script>
+    <script type="text/javascript">
+      var slideshow = remark.create();
+
+      // Setup MathJax
+      MathJax.Hub.Config({
+          tex2jax: {
+          skipTags: ['script', 'noscript', 'style', 'textarea', 'pre']
+          }
+      });
+      MathJax.Hub.Queue(function() {
+          $(MathJax.Hub.getAllJax()).map(function(index, elem) {
+              return(elem.SourceElement());
+          }).parent().addClass('has-jax');
+      });
+
+      MathJax.Hub.Configured();
+    </script>
+  </body>
+</html>
