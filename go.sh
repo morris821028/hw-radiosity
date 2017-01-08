@@ -7,8 +7,8 @@ MODELNAME=room.tri
 make
 mkdir -p output
 rm output/*
-#time -p ./rad -l 10 -t 1000000 -i 50 model/${MODELNAME} output/test
-time -p ./rad -c 800 -l 10 -t 30000 -i 1 model/${MODELNAME} output/test
+#time -p ./rad -write_cycle 10 -light 50 model/${MODELNAME} -o ./output/test
+time -p ./rad -converge 800 -write_cycle 10 -triangle 30000 -light 10 model/${MODELNAME} -o ./output/test
 cd ./demo && ./run.sh test.fin
 
 #cp output/test.fin ./demo

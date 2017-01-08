@@ -11,4 +11,5 @@ test:
 move:
 	mv $(FILE_PREFIX).json ~/Desktop/github/hw-computer-graphics/hw1-shading-cmp/WebGL/asset/
 clean:
-	rm tri2json
+	-rm tri2json
+	-rm test*

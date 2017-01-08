@@ -22,8 +22,6 @@ static int AllocTriangle(void) {
 			firstFlag = 0;
 		}
 		return -1;
-		fprintf(stderr, "\n**** Max Triangle exceed : %i ***\n", trinum);
-		exit(-1); 
 	}
 	return trinum++; 
 }
@@ -464,6 +462,6 @@ void PrePartitionTriangles()
 			threadhold = max(threadhold/2, 0.001f);
 		}
     }
-    fprintf(stderr, "MoreTriangle %d\n", trinum);
+    fprintf(stderr, "[" KRED "DEBUG" KWHT "] After MoreTriangle %d\n", trinum);
 }
 

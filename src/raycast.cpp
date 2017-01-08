@@ -7,14 +7,14 @@
 #include <unordered_map>
 using namespace std;
 
-int             TriListStore[MaxTriList];
-int             TriListStorePtr;
+static int             TriListStore[MaxTriList];
+static int             TriListStorePtr;
 
-TreeNode        TreeNodeStore[MaxTreeNode];
-int             TreeNodeStorePtr;
+static TreeNode        TreeNodeStore[MaxTreeNode];
+static int             TreeNodeStorePtr;
 
-float           MinGridLen;
-int             GridNum;
+static float           MinGridLen;
+static int             GridNum;
 
 
 /**
@@ -174,7 +174,7 @@ static int buildTree(vector<int> triangleIdxs, int level, Vector g0, Vector g1)
 
 	/* for debug use */
 	if (TreeNodeStorePtr >= MaxTreeNode) {
-		printf("treenodenum exceeded\n");
+		fprintf(stderr, "[" KRED "ERR" KWHT "] #TreeNode exceeded limitation\n");
 		exit(1);
 	}
 
@@ -217,10 +217,9 @@ static int buildTree(vector<int> triangleIdxs, int level, Vector g0, Vector g1)
 void BuildTree(void)
 {
 	vector<int> triangleIdxs;
-	for (int i = 0; i < trinum; i++) {
-		TrianglePtr tp = &TriStore[i];
+	for (int i = 0; i < trinum; i++)
 		triangleIdxs.push_back(i);
-	}
+
 	TriListStorePtr = 0;
 
 	TreeNodeStorePtr = 0;
@@ -231,8 +230,7 @@ void BuildTree(void)
 
 	GridNum = (int) ((G1[0] - G0[0]) / MinGridLen);
 
-	printf("BuildTree over, TreeNode # is %d, Trilist # is %d\n",
-			TreeNodeStorePtr, TriListStorePtr);
+	fprintf(stderr, "[" KGRN "INFO" KWHT "] 3D-DDA #TreeNode = %d, #Trilist = %d\n", TreeNodeStorePtr, TriListStorePtr);
 }
 
 static inline float NextPoint(Vector p, Vector v, Vector g0, Vector g1, Vector q)

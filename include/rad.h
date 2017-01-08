@@ -12,6 +12,14 @@
 
 #define ffabs(x) (float)fabs((double)(x))
 
+#define KNRM  "\x1B[0m"
+#define KRED  "\x1B[31m"
+#define KGRN  "\x1B[32m"
+#define KYEL  "\x1B[33m"
+#define KBLU  "\x1B[34m"
+#define KMAG  "\x1B[35m"
+#define KCYN  "\x1B[36m"
+#define KWHT  "\x1B[37m"
 
 typedef struct {
 	Vector	p[3];		/* the vertices */
@@ -42,17 +50,8 @@ inline int isLightSource(TrianglePtr tp) {
 extern Triangle	TriStore[MaxTri];
 extern int	TriStorePtr;
 
-extern int	TriListStore[MaxTriList];
-extern int	TriListStorePtr;
-
-extern TreeNode	TreeNodeStore[MaxTreeNode];
-extern int	TreeNodeStorePtr;
-
 extern int	trinum;
 extern Vector	G0, G1;
-
-extern float	MinGridLen;
-extern int	GridNum;
 
 extern int	Debug;
 extern float	AreaLimit;

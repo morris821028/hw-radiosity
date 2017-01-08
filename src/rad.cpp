@@ -12,14 +12,11 @@
 #include "raycast.h"
 #include "shade.h"
 #include "vector.h"
-#include "report.h"
 #include "config.h"
 #include <omp.h>
 #include <algorithm>
 #include <set>
 using namespace std;
-#define DEBUG3x
-#define MAX_OPTION  9
 
 int Debug = 0;
 float AreaLimit = 5.0;
@@ -36,16 +33,13 @@ int TriStorePtr;
 int trinum;
 Vector G0, G1;
 
-const char option[MAX_OPTION][3] = {"-d", "-a", "-s", "-c", "-f", "-l", "-z", "-t", "-i"};
-
-
-/* 
- * ** Read in the triangles.  ** **     Also calculate the normal vector,
- * center point, **     the equations of three side with normal pointed
- * inward, **   and the area. ** **     The background RGB is the emitting
- * value.  **   The foreground RGB is used as the coeffient of
- * reflectiveness. **     (See InitRad() and DoRadiosity() for detail
- * information) ** ** Determine the GO,G1.
+/** 
+ * Read in the triangles. Also calculate the normal vector, center point, 
+ * the equations of three side with normal pointed
+ * inward, and the area. The background RGB is the emitting
+ * value. The foreground RGB is used as the coeffient of
+ * reflectiveness. (See InitRad() and DoRadiosity() for detail
+ * information) Determine the GO,G1.
  */
 
 void ReadTriangle(FILE * fp)
@@ -124,13 +118,10 @@ void ReadTriangle(FILE * fp)
 
 
 /**********************************************************
-  Change loop check.
-  Always write output.
-  0 is final.
+  Change loop check. Always write output. 0 is final.
  **********************************************************/
-void PrintOut(char *fname, int loop)
+void PrintOut(const char *fname, int loop)
 {
-	int i;
 	TrianglePtr tp;
 	FILE *fout;
 	char fn[80], tail[10], cmd[80];
@@ -151,8 +142,7 @@ void PrintOut(char *fname, int loop)
 		else
 			return;
 	}
-	for (i = 0; i < trinum; i++)
-	{
+	for (int i = 0; i < trinum; i++) {
 		tp = &TriStore[i];
 		/**********************************************************
 		  skip logical triangle.
@@ -174,7 +164,7 @@ void PrintOut(char *fname, int loop)
 				tp->p[2][0], tp->p[2][1], tp->p[2][2]);
 		fprintf(fout, "%i %i %i 0 0 0 \n", (int)tp->accB[2][0], (int)tp->accB[2][1], (int)tp->accB[2][2]);
 #else
-		
+
 		fprintf(fout, "Triangle \n");
 		float frontColor[3] = {};
 		for (int j = 0; j < 3; j++) {
@@ -216,18 +206,17 @@ void init(FILE * fp)
 
 	ReadTriangle(fp);
 
-	printf("Triangle: %d\n", trinum);
+	fprintf(stderr, "[" KGRN "INFO" KWHT "] Read #Triangle " KMAG "%d" KWHT " from input file\n", trinum);
 
 	BuildTree();
 }
 
 
 
-/* 
- * * Initiate accB and deltaB to 0 ** For the light source, set accB and
- * delta equal to its emiting  **       value-- the background color. ** **
- * Note:: A patch is a light source iff any one background color  ** is
- * nonzero.
+/** 
+ * Initiate accB and deltaB to 0. For the light source, set accB and
+ * delta equal to its emiting value-- the background color.
+ * Note: A patch is a light source iff any one background color is nonzero.
  */
 void InitRad(void)
 {
@@ -330,9 +319,10 @@ void InitRad(void)
 
 	if (SampleArea < 0.0)
 		SampleArea = maxarea / 100.0;
+	printf("[" KGRN "INFO" KWHT "] Config Table\n");
 	printf("       MaxPatchArea    %f\n", maxarea);
 	printf("       MinPatchArea    %f\n", minarea);
-	printf("       debuglevel      %i\n", Debug);
+	printf("       Debuglevel      %i\n", Debug);
 	printf("       AreaLimit       %f\n", AreaLimit);
 	printf("       SampleArea      %f\n", SampleArea);
 	printf("       ConvergeLimit   %f\n", ConvergeLimit);
@@ -340,7 +330,7 @@ void InitRad(void)
 	printf("       WriteIteration: %d\n", WriteIteration);
 	printf("       TriangleLimit:  %d\n", TriangleLimit);
 	printf("       LightScale:     %f\n", LightScale);
-	printf("Init Rad Over!!\n");
+	printf("[" KGRN "INFO" KWHT "] Complete initialization\n");
 }
 
 
@@ -368,7 +358,7 @@ int MaxDeltaRad(void)
 		if (Debug) {
 			printf("------------------------\n");
 			printf("MaxDeltaRad--maxDelta = %f\n", maxDelta);
-//			printf("MaxDeltaRad--maxArea  = %f\n", maxArea);
+			//			printf("MaxDeltaRad--maxArea  = %f\n", maxArea);
 		}
 #endif
 	}
@@ -477,7 +467,7 @@ static int serialRadiosity() {
 	InitVector(srctri->deltaB, 0.0, 0.0, 0.0);
 	return 1;
 }
-void DoRadiosity(char *fname)
+void DoRadiosity(const char fileName[])
 {
 	InitRad();
 #ifdef PRE_PARTITION 
@@ -487,44 +477,69 @@ void DoRadiosity(char *fname)
 		int loop;
 		for (loop = 1; ; loop++)
 		{
-			//if (loop % WriteIteration == 0)
-			fprintf(stderr, "Loop %d\n", loop);
+			if (loop % WriteIteration == 0)
+				fprintf(stderr, "[" KGRN "INFO" KWHT "] Loop %d BEGIN\n", loop);
 			if (parallelRadiosity() == 0)
 				break;
 			//if (serialRadiosity() == 0)
 			//	break;
-			if (loop % WriteIteration == 0)
-				PrintOut(fname, loop);
-			if (Debug)
-				printf("In this iteration, there are %i triangles.\n", trinum);
+			if (loop % WriteIteration == 0) {
+				PrintOut(fileName, loop);
+				fprintf(stderr, "[" KGRN "INFO" KWHT "] END Loop. There are %i triangles.\n", trinum);
+			}
 		}
-		printf("#Iterations %d\n", loop);
+		fprintf(stderr, "[" KGRN "INFO" KWHT "] Complete in #Iterations %d\n", loop);
 	}
-	PrintOut(fname, 0);
+	PrintOut(fileName, 0);
 }
 
 
 
-int ProcessOption(int argc, char *argv[])
+char* ProcessOption(int argc, char *argv[], FILE* &fin)
 {
+	const char option[][16] = {"-debug", "-adapt_area", "-sample_area", "-converge", "-delta_ff", 
+				"-write_cycle", "-zip", "-triangle", "-light", "-o"};
+	const int MAX_OPTION = sizeof(option) / sizeof(option[0]);
 	if (argc < 3) {
-		fprintf(stderr, "Usage: %s [-dascfl] ifile ofile\n", argv[0]);
-		fprintf(stderr, "       -d debuglevel    : default %i\n", Debug);
-		fprintf(stderr, "       -a AreaLimit     : default %f\n", AreaLimit);
-		fprintf(stderr, "       -s SampleArea    : user-defined or model-dependent\n");
-		fprintf(stderr, "       -c ConvergeLimit : default %f\n", ConvergeLimit);
-		fprintf(stderr, "       -f DeltaFFLimit  : default %f\n", DeltaFFLimit);
-		fprintf(stderr, "       -l WriteIteration: default %d\n", WriteIteration);
-		fprintf(stderr, "       -t TriangleLimit : default %d\n", TriangleLimit);
-		fprintf(stderr, "       -i LightScale    : default %f\n", LightScale);
-		fprintf(stderr, "	-z gzip output file. Default = false.\n");
-
+		fprintf(stderr, "Usage: %s [options] input_file -o output_file\n", argv[0]);
+		fprintf(stderr, "OPTIONS\n");
+		fprintf(stderr, "   Debug Options\n");
+		fprintf(stderr, "       -debug <integer>    	Output intermediate result according debug level.\n");
+		fprintf(stderr, "                               " KMAG "Default -debug %d\n\n" KWHT, Debug);
+		fprintf(stderr, "   Radiosity Options\n");
+		fprintf(stderr, "       -adapt_area <float>     The threahold of adaptive splitting algorithm.\n");
+		fprintf(stderr, "                               " KMAG "Default -area %f\n" KWHT, AreaLimit);
+		fprintf(stderr, "       -sample_area <float>    When the difference of form factor for each vertex is\n");
+		fprintf(stderr, "                               greater than delta form factor, it should try to split.\n");
+		fprintf(stderr, "                               " KMAG "Default by model-dependent\n" KWHT);
+		fprintf(stderr, "       -converge <float>       The radiosity B is the energy per unit area unit B is too small.\n");
+		fprintf(stderr, "                               " KMAG "Default -converge %f\n" KWHT, ConvergeLimit);
+		fprintf(stderr, "       -delta_ff <float>       The difference of delta form factor which is smaller than delta_ff\n");
+		fprintf(stderr, "                               will consider as the same.\n");
+		fprintf(stderr, "                               " KMAG "Default -delta_ff %f\n" KWHT, DeltaFFLimit);
+		fprintf(stderr, "       -write_cycle <integer>  Write the status of radiosity for each write_cycle iterations.\n");
+		fprintf(stderr, "                               " KMAG "Default -write_cycle %d\n" KWHT, WriteIteration);
+		fprintf(stderr, "       -triangle <integer>     The maximum the number of triangles in the model. If you show image\n");
+		fprintf(stderr, "                               on WebGL, set -triangle 30000 is the best resolution\n");
+		fprintf(stderr, "                               " KMAG "Defulat -triangle %d\n" KWHT, TriangleLimit);
+		fprintf(stderr, "       -light <float>          Adjust the scale of bright light for testing.\n");
+		fprintf(stderr, "                               " KMAG "Defulat -light %f\n" KWHT, LightScale);
+		fprintf(stderr, "   Output Options\n");
+		fprintf(stderr, "       -zip                    Compress output file by zip.\n");
+		fprintf(stderr, "                               " KMAG "Defulat false\n" KWHT);
+		fprintf(stderr, "       -o </<path>/file>       Assign the prefix filename the output file\n");
+		fprintf(stderr, "                               " KMAG "Defulat ./test\n" KWHT);
 		exit(1);
 	}
-	for (int i = 1; i < argc - 2; i++) {
+	static char default_path[16] = "./test";
+	char *ifileName = NULL;
+	char *ofileName = default_path;
+	for (int i = 1; i < argc; i++) {
+		int has = 0;
 		for (int j = 0; j < MAX_OPTION; j++) {
 			if (strcmp(argv[i], option[j]))
 				continue;
+			has = 1;
 			switch (j) {
 				case 0:
 					assert(sscanf(argv[++i], "%d", &Debug) == 1 && "Debug Error");
@@ -553,13 +568,20 @@ int ProcessOption(int argc, char *argv[])
 				case 8:
 					assert(sscanf(argv[++i], "%f", &LightScale) == 1 && "LightScale Error");
 					break;
+				case 9:
+					ofileName = argv[++i];
+					break;
 				default:
 					fprintf(stderr, "Invaild Option : %s", argv[i]);
 					exit(1);
-			}		  /* end of switch */
+			}
 		}
+		if (!has)
+			ifileName = argv[i];
 	}
-	return argc-2;
+	fprintf(stderr, "*--------------- %s\n", ofileName);
+	fin = fopen(ifileName, "r");
+	return ofileName;
 }
 
 
@@ -568,36 +590,27 @@ int main(int argc, char *argv[])
 {
 	const int P = 20;
 	omp_set_num_threads(P);
-	int i;
-	float start[2], end[2];
 	FILE *fin;
-
-	i = ProcessOption(argc, argv);
-
-	start[0] = real_time();
-	start[1] = process_time();
-
-	if ((fin = fopen(argv[i++], "r")) == NULL)
-	{
+	const char *foutName = ProcessOption(argc, argv, fin);
+	
+	if (fin == NULL) {
 		fprintf(stderr, "File open error::%s\n", argv[2]);
 		exit(1);
 	}
-	init(fin);
 
-	end[0] = real_time();
-	end[1] = process_time();
+	{
+		double stTime = omp_get_wtime();
+		init(fin);
+		double edTime = omp_get_wtime();
+		fclose(fin);
+		printf("Init took %f sec. time.\n", edTime - stTime);
+	}
 
-	printf("Total Initial time = %f\n", end[0] - start[0]);
-	printf("User Initial time(CPU) = %f\n", end[1] - start[1]);
-
-	DoRadiosity(argv[i]);
-
-	end[0] = real_time();
-	end[1] = process_time();
-
-	printf("Total Process time = %f\n", end[0] - start[0]);
-	printf("User Process time(CPU) = %f\n", end[1] - start[1]);
-
-	fclose(fin);
+	{
+		double stTime = omp_get_wtime();
+		DoRadiosity(foutName);
+		double edTime = omp_get_wtime();
+		printf("Work took %f sec. time.\n", edTime - stTime);
+	}
 	return 0;
 }
