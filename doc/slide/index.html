@@ -22,7 +22,7 @@
       .remark-slide-content h3 { font-size: 2em; }
       .remark-slide-content p { font-size: 1em; }
       .remark-slide-content blockquote { font-style: italic; }
-      .remark-slide-content img { max-width: 80%; }
+      .remark-slide-content img { max-width: 90%; max-height: 400px; }
       .remark-slide-content .big { font-size: 8em; }
       .footnote {
         position: absolute;
@@ -108,7 +108,7 @@
       /* Two-column layout */
       .left-column {
         color: #777;
-        width: 45%;
+        width: 48%;
         height: 92%;
 		float: left;
       }
@@ -116,7 +116,7 @@
           color: #000;
         }
       .right-column {
-        width: 45%;
+        width: 48%;
 		float: right;
       }
     </style>
@@ -467,6 +467,40 @@ while (not converage) {
 * Q: 為什麼按照中線切割無法自適應？  
 A: 因為鄰居不在同一個 thread 中，那麼在切割鄰居就無法傳遞正確的能量。
 
+---
+
+### Snapshot - Blocks ###
+
+平行版本 blocks.tri，消耗時間 4 秒
+
+
+.center[![Parallel 4 sec. blocks](http://i.imgur.com/jiMeTE9.png)]
+
+> 為了在 WebGL 上呈現，最多 30000 個三角形，否則很容易產生破圖。
+
+---
+
+### Snapshot - Room ###
+
+平行版本 room.tri，消耗時間 28 秒
+
+.center[![Parallel 28 sec. room](http://i.imgur.com/0pUng1j.png)]
+
+---
+
+### Snapshot - Hall ###
+
+平行版本 hall.tri，消耗時間 43 秒
+
+.center[![Parallel 43 sec. hall](http://i.imgur.com/3GnHkXJ.png)]
+
+---
+
+### Snapshot - Church ###
+
+平行版本 hall.tri，消耗時間 27 秒
+
+.left-column[.center[![Parallel 27 sec. church](http://i.imgur.com/3Nkyg07.png)]] .right-column[.center[![Parallel 27 sec. church](http://i.imgur.com/i4K0Stl.png)]]
 
 ---
 
@@ -477,6 +511,10 @@ class: center
 .center[![](http://i.imgur.com/I46R1TF.jpg)]
 
 [Download Source Code @Github](https://github.com/morris821028/hw-radiosity)
+
+> Warning the demo website need download large files
+
+[Online Demo @LabServer(Temporary)](http://140.112.30.244:8888/demo/public/)
 
 論文已死
 
