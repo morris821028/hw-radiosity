@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <algorithm>
+#include <omp.h>
 using namespace std;
 #include "rad.h"
 #include "raycast.h"
@@ -9,12 +10,13 @@ using namespace std;
 #define RefRatio	(0.5)
 
 /* Helper */
-#define FreeTriangle()  (trinum)--
-// #define AllocTriangle() (trinum)++
 
 extern int Debug;
 
-static int AllocTriangle(void) { 
+static inline void FreeTriangle() {
+	trinum--;
+}
+static int AllocTriangle(void) {
 	static int firstFlag = 1;
 	if (trinum == MaxTri || trinum == TriangleLimit) { 
 		if (firstFlag) {
@@ -23,7 +25,8 @@ static int AllocTriangle(void) {
 		}
 		return -1;
 	}
-	return trinum++; 
+	int id = trinum++;
+	return id; 
 }
 
 
@@ -110,8 +113,8 @@ static float CalFF(TrianglePtr srctri, int logsrc, TrianglePtr destri, int logde
 	float ff = ctheta1 * ctheta2;
 	if (ff <= 0.0)
 		return 0.0;
-	ff *= srctri->area / (norm2(dir) * PI + srctri->area);
-	// ff *= srctri->area / (norm2(dir) * PI);
+	//ff *= srctri->area / (norm2(dir) * PI + srctri->area);
+	ff *= srctri->area / (norm2(dir) * PI);
 	if (ff <= 0.0)
 		return 0.0;
 	if (RayHitted(p, dir, logdest, logsrc) == logsrc)
@@ -144,7 +147,7 @@ float AdaptCalFF(float ff, TrianglePtr srctri, int logsrc, TrianglePtr destri, i
 				maxlength = length, edge = v;
 			}
 		}
-		if (maxlength < 1)
+		if (maxlength < 0.1)
 			return ff;
 	}
 	/**********************************************************
@@ -238,11 +241,13 @@ inline int PartitionTriangleAndStore(TrianglePtr srcTri, int realSrc, int &deste
 				maxlength = length, destedge = v;
 			}
 		}
-		if (maxlength < 1)
+		if (maxlength < 1) {
 			return -1;
+		}
 		int neighborID = srcTri->neighbor[destedge];
-		if (neighborID >= 0 && TriStore[neighborID].area < 1e-1)
+		if (neighborID >= 0 && TriStore[neighborID].area < 1e-1) {
 			return -1;
+		}
 	}
 
 	reshadeNeighbor = false;
@@ -281,8 +286,9 @@ inline int PartitionTriangleAndStore(TrianglePtr srcTri, int realSrc, int &deste
 	SetNeighborToMe(n2ID, realSrc, t2ID);
 	t1->neighbor[0] = t2ID;
 	t2->neighbor[2] = t1ID;
-	if (neighborID < 0)
+	if (neighborID < 0) {
 		return replaceFlag;
+	}
 
 	int t3ID = AllocTriangle();
 	int t4ID = AllocTriangle();
@@ -340,7 +346,9 @@ inline int PartitionTriangleAndStore(TrianglePtr srcTri, int realSrc, int &deste
 		reshadeNeighbor = true;
 	return replaceFlag;
 }
-
+/**
+ *  @return 1: splitting new triangle, 0: none
+ */
 int Shade(TrianglePtr srctri, int logsrc, TrianglePtr destri, int logdest, int realdest)
 {
 	float ff[3], ffs, deltaff;
@@ -450,7 +458,7 @@ void PrePartitionTriangles()
         int has = 0;
         for (int i = 0; i < trinum; i++) {
             TrianglePtr tp = &TriStore[i];
-            if (tp->area < threadhold)
+            if (tp->area < threadhold || isLightSource(tp))
                 continue;
             has = 1;
             int destedge;
@@ -459,7 +467,7 @@ void PrePartitionTriangles()
             PartitionTriangleAndStore(tp, i, destedge, t1, t2, t3, t4, reshadeNeighbor);
         }
         if (!has) {
-			threadhold = max(threadhold/2, 0.001f);
+			threadhold = max(threadhold/2, 10.f);
 		}
     }
     fprintf(stderr, "[" KRED "DEBUG" KWHT "] After MoreTriangle %d\n", trinum);

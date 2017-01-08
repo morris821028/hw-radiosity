@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <omp.h>
 #include "vector.h"
 
 #define PI		(3.1415926535897932)

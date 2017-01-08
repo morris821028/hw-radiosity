@@ -344,7 +344,8 @@ int RayHitted(Vector p, Vector v, int fromTriangleIdx, int toTargetIdx)
 	while ((currIdx = TreeNodeNum(q)) >= 0) {	// find the ID of the cude which the start point of the ray in
 		if (prevIdx == currIdx) {
 			fprintf(stderr, "*** Precision Exceeded !!! \n");
-			fprintf(stderr, "*** the index of triangle is %d\n", fromTriangleIdx);
+			fprintf(stderr, "*** the index of triangle is %d, %f\n", fromTriangleIdx, TriStore[fromTriangleIdx].area);
+//			exit(1);
 			t += 1.0;
 			Add1Vector(p, t, v, q);
 			continue;

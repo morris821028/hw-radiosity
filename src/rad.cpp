@@ -196,7 +196,10 @@ void PrintOut(const char *fname, int loop)
 	{
 		char cmd[128] = "cd ./demo && ./run.sh ../";
 		strcat(cmd, fn);
-		system(cmd);
+		if (system(cmd))
+			puts("OK");
+		else
+			puts("Failed");
 	}
 }
 
@@ -377,7 +380,7 @@ vector<int> listCanditate()
 	}
 	sort(C.begin(), C.end());
 	vector<int> ret;
-	size_t n = min(((int) C.size()+4)/5, 1000);
+	size_t n = min(((int) C.size()+4)/5, 100);
 	for (size_t i = 0, j = C.size()-1; i < n; i++, j--)
 		ret.push_back(C[j].second);
 	return ret;
@@ -479,10 +482,13 @@ void DoRadiosity(const char fileName[])
 		{
 			if (loop % WriteIteration == 0)
 				fprintf(stderr, "[" KGRN "INFO" KWHT "] Loop %d BEGIN\n", loop);
+#ifdef PARALLEL
 			if (parallelRadiosity() == 0)
 				break;
-			//if (serialRadiosity() == 0)
-			//	break;
+#else
+			if (serialRadiosity() == 0)
+				break;
+#endif
 			if (loop % WriteIteration == 0) {
 				PrintOut(fileName, loop);
 				fprintf(stderr, "[" KGRN "INFO" KWHT "] END Loop. There are %i triangles.\n", trinum);
@@ -603,14 +609,14 @@ int main(int argc, char *argv[])
 		init(fin);
 		double edTime = omp_get_wtime();
 		fclose(fin);
-		printf("Init took %f sec. time.\n", edTime - stTime);
+		fprintf(stderr, "[" KGRN "INFO" KWHT "] Init took " KMAG "%f" KWHT " sec. time.\n", edTime - stTime);
 	}
 
 	{
 		double stTime = omp_get_wtime();
 		DoRadiosity(foutName);
 		double edTime = omp_get_wtime();
-		printf("Work took %f sec. time.\n", edTime - stTime);
+		fprintf(stderr, "[" KGRN "INFO" KWHT "] Init took " KMAG "%f" KWHT " sec. time.\n", edTime - stTime);
 	}
 	return 0;
 }
