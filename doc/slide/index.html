@@ -425,6 +425,38 @@ float computeFormFactor(TrianglePtr srcTri, int logSrc, TrianglePtr desTri, int 
 
 ---
 
+### Snapshot - Blocks ###
+
+基礎版本 block.tri，消耗時間 9 秒
+
+.center[![Parallel 9 sec. blocks](http://i.imgur.com/SZYs2sq.png)]
+
+---
+
+### Snapshot - Room ###
+
+基礎版本 room.tri，消耗時間 60 秒
+
+.center[![Parallel 60 sec. room](http://i.imgur.com/fv11dZu.png)]
+
+---
+
+### Snapshot - Hall ###
+
+基礎版本 hall.tri，消耗時間 60 秒
+
+.center[![Parallel 60 sec. hall](http://i.imgur.com/k5D4wHn.png)]
+
+---
+
+### Snapshot - Church ###
+
+基礎版本 church.tri，消耗時間 60 秒
+
+.center[![Parallel 60 sec. church](http://i.imgur.com/oZtcYqd.png)]
+
+---
+
 ## Parallel Algorithm
 
 ### Review Serial Algorithm
@@ -486,6 +518,8 @@ A: 因為鄰居不在同一個 thread 中，那麼在切割鄰居就無法傳遞
 
 .center[![Parallel 28 sec. room](http://i.imgur.com/0pUng1j.png)]
 
+> 為了在 WebGL 上呈現，最多 30000 個三角形，否則很容易產生破圖。
+
 ---
 
 ### Snapshot - Hall ###
@@ -494,13 +528,23 @@ A: 因為鄰居不在同一個 thread 中，那麼在切割鄰居就無法傳遞
 
 .center[![Parallel 43 sec. hall](http://i.imgur.com/3GnHkXJ.png)]
 
+> 為了在 WebGL 上呈現，最多 30000 個三角形，否則很容易產生破圖。
+
 ---
 
-### Snapshot - Church ###
+### Snapshot - Church view 1 ###
 
 平行版本 hall.tri，消耗時間 27 秒
 
-.left-column[.center[![Parallel 27 sec. church](http://i.imgur.com/3Nkyg07.png)]] .right-column[.center[![Parallel 27 sec. church](http://i.imgur.com/i4K0Stl.png)]]
+.center[![Parallel 27 sec. church](http://i.imgur.com/3Nkyg07.png)]
+
+---
+
+### Snapshot - Church view 2 ###
+
+.center[![Parallel 27 sec. church](http://i.imgur.com/i4K0Stl.png)]
+
+> 為了在 WebGL 上呈現，最多 30000 個三角形，否則很容易產生破圖。
 
 ---
 
