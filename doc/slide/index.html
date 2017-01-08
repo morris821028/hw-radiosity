@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <title>古古</title>
+    <title>QQ</title>
     <meta charset="utf-8">
     <style>
       @import url(https://fonts.googleapis.com/css?family=Droid+Serif);
@@ -20,6 +20,7 @@
       .remark-slide-content h2 { font-size: 3em; }
       .remark-slide-content h3 { font-size: 2em; }
       .remark-slide-content p { font-size: 1em; }
+      .remark-slide-content blockquote { font-style: italic; }
       .footnote {
         position: absolute;
         bottom: 3em;
@@ -123,7 +124,7 @@
 title: Radiosity
 class: center, middle
 
-# Paralleling Computing and Optimization Skills for Radiosity
+# Parallel Computing and Optimization Skills for Radiosity
 
 R04922067 楊翔雲 R04922133 古君葳
 
@@ -238,7 +239,170 @@ int Clip(Vector p0, Vector p1, Vector g0, Vector g1, int x, int y) {
 
 ---
 
-### Strength Reduction ###
+### Strength Reduction for Float-point ###
+
+兩個外積結果相乘小於零，減少 instruction cycle 量，盡量用整數作為運算型態。
+
+.left-column[
+```c
+float a = cross(/* */);
+float b = cross(/* */);
+if (a * b < 0)
+	return false;
+b = cross(/* */);
+if (a * b < 0)
+	return false;
+...
+```
+] .right-column[
+
+```c
+int a = cross(/* */) < 0;
+int b = cross(/* */) < 0;
+if (a != b)
+	return false;
+b = cross(/* */) < 0;
+if (a != b)
+	return false;
+...
+```
+]
+
+
+---
+
+### Strength Reduction for Ray Casting ###
+
+加入利用已知結果 `\(\vec{v} = p + t_{\text{min}} \cdot d, \;\; t_{\text{min}} > 0\)`
+
+```c
+int TriangleHitted(Vector p, Vector d, TrianglePtr tp, float *t_min) {
+	float t = /* time t from p to bounding box of Triangle tp */;
+	if (t < eps)
+		return false;
+	if (t >= *t_min)	/* important !! */
+		return false;
+	/* ... */
+	*t_min = t;
+	return true;
+}
+```
+
+---
+
+### Shrink the Scope of Variables ###
+
+減少變數生命週期的長度以增加放入暫存器的機會，而非 stack 上。
+
+.left-column[
+```c
+float rgb[3];
+for (int i = 0; i < 3; i++)
+	rgb[f(i)] = g(i);
+/* ... */
+if (maybe) {
+	for (int i = 0; i < 3; i++) {
+		rgb[h(i)] = g(i);
+	}
+	/* ... */
+}
+```
+] .right-column[
+```c
+{
+	float rgb[3];
+	for (int i = 0; i < 3; i++)
+		rgb[f(i)] = g(i);
+	/* ... */
+}
+if (maybe) {
+	float rgb[3];
+	for (int i = 0; i < 3; i++) {
+		rgb[h(i)] = g(i);
+	}
+	/* ... */
+}
+```
+]
+
+---
+
+### Reduce the Number of Arguments ###
+
+1. 減少 stack push/pop 次數
+2. 我們可以考慮使用 Copy 的方式放入較近的 stack 上，而非傳遞指標
+
+> 特別在平行處理上，編譯器不敢針對可能是 share 的變數進行 Copy Optimization
+
+.left-column[
+```c
+struct Arg {
+	int a0, a1;
+};	// p1.a1 = p2.a0
+int f(Arg p1, Arg p2) {
+	/* ... */
+}
+```
+] .right-column[
+```c
+struct Arg {
+	int a0, a1, a2;
+};
+int f(Arg p1p2) {
+	/* ... */
+}
+
+```
+]
+
+.left-column[
+```c
+int f(const Triangle *from) {
+	for (int i = 0; i < n; i++)
+		compute(from, i);
+	/* */
+}
+```
+] .right-column[
+```c
+int f(const Triangle *from) {
+	Triangle tmp = *from;
+	for (int i = 0; i < n; i++)
+		compute(tmp, i);
+}
+
+```
+]
+
+---
+
+### Strength Reduction for Form-Factor ###
+
+```c
+float computeFormFactor(TrianglePtr srcTri, int logSrc, TrianglePtr desTri, int logDes, Vector p) {
+	Vector dir = srcTri->c - p;
+	float ff = 0;
+	if (RayHitted(p, dir, logDes) == logDes) {
+		float theta1 = CosTheta(dir, srcTri->normal), theta2 = CosTheta(dir, desTri->normal);
+		ff = theta1 * theta2 * srcTri->area / (norm2(dir) * PI);
+	}
+	return max(ff, 0.f);
+}
+```
+
+```c
+float computeFormFactor(TrianglePtr srcTri, int logSrc, TrianglePtr desTri, int logDes, Vector p) {
+	Vector dir = srcTri->c - p;
+	float theta1 = CosTheta(dir, srcTri->normal), theta2 = CosTheta(dir, desTri->normal);
+	float ff = theta1 * theta2;
+	if (ff <= 0)	return 0.f;
+	ff *= srcTri->area / (norm2(dir) * PI);
+	if (ff <= 0)	return 0.f;
+	if (RayHitted(p, dir, logDes) == logDes)
+		return ff;
+	return 0.f;
+}
+```
 
 ---
 
