@@ -11,13 +11,37 @@ CPU-based [Radiosity](https://en.wikipedia.org/wiki/Radiosity_(computer_graphics
 
 ## Build ##
 
-```
+```bash
 git clone https://github.com/morris821028/hw-radiosity
 cd hw-radiosity && make
 ```
 
-## Demo ##
+## Demo (WebGL) ##
 
-```
+
+### For server ###
+
+```bash
 cd hw-radiosity && ./server.sh
 ```
+
+link http://127.0.0.1:8888/demo/public/
+
+### For localhost ###
+
+```bash
+cd hw-radiosity/demo/public
+```
+
+#### Windows ####
+
+```
+./chrome.exe -allow-file-access-from-files
+```
+
+#### Macbook ####
+
+```bash
+/Applications/Google Chrome.app/Contests/MacOS/Google Chrome -allow-file-access-from-files
+```
+
