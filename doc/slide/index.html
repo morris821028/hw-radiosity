@@ -16,11 +16,14 @@
         font-weight: 400;
         margin-bottom: 0;
       }
+      .remark-slide-content {background: #272822; color: white; }
       .remark-slide-content h1 { font-size: 4em; }
       .remark-slide-content h2 { font-size: 3em; }
       .remark-slide-content h3 { font-size: 2em; }
       .remark-slide-content p { font-size: 1em; }
       .remark-slide-content blockquote { font-style: italic; }
+      .remark-slide-content img { max-width: 80%; }
+      .remark-slide-content .big { font-size: 8em; }
       .footnote {
         position: absolute;
         bottom: 3em;
@@ -329,8 +332,7 @@ if (maybe) {
 
 ### Reduce the Number of Arguments ###
 
-1. 減少 stack push/pop 次數
-2. 我們可以考慮使用 Copy 的方式放入較近的 stack 上，而非傳遞指標
+減少 stack push/pop 次數
 
 > 特別在平行處理上，編譯器不敢針對可能是 share 的變數進行 Copy Optimization
 
@@ -355,19 +357,26 @@ int f(Arg p1p2) {
 ```
 ]
 
+---
+
+### Copy Optimization ###
+
+我們可以考慮使用 Copy 的方式放入較近的 stack 上，而非傳遞指標
+
+> 將資料放得近可提升 cache 使用率，隨著使用次數增加而明顯
+
 .left-column[
 ```c
 int f(const Triangle *from) {
-	for (int i = 0; i < n; i++)
+	for (int i = 0; i < n; i++)	
 		compute(from, i);
-	/* */
 }
 ```
 ] .right-column[
 ```c
 int f(const Triangle *from) {
 	Triangle tmp = *from;
-	for (int i = 0; i < n; i++)
+	for (int i = 0; i < n; i++)	
 		compute(tmp, i);
 }
 
@@ -406,7 +415,71 @@ float computeFormFactor(TrianglePtr srcTri, int logSrc, TrianglePtr desTri, int 
 
 ---
 
-## Parallel
+### Comment
+
+光使用編譯器參數，下得好即可加速 2 倍之多，而 Strength Reduction for Form-Factor 章節講到的判斷提供 2 倍之快，而其他技術則提供了 10% ~ 20% 左右的效能改善。
+
+最後，我們加速了
+
+.big[.center[ 4 x ]]
+
+---
+
+## Parallel Algorithm
+
+### Review Serial Algorithm
+
+原始的算法中，每一次會挑選單位面積能量最多的那塊三角形 `\(f\)`，針對盤面上所有三角形 `\(t\)` 進行輻射。在輻射的過程中，若 `\(t\)` 三個頂點之間的能量差異大，可選擇自適應切割三角形。
+
+* 使用最長邊中點切割，盡可能增加銳角三角形，分裂的同時需要針對鄰居更新
+
+```c
+while (not converage) {
+	f = MaxRadiosityTriangle()
+	foreach triangle t in model
+		shader(f, t);
+	clearRadiosity(f)
+}
+```
+
+---
+
+### Parallel Design
+
+每一次挑選亮度前 `\(20\%\)` 三角形作為光源，將其他三角形嘗試與其進行熱輻射
+
+> 可以只選擇最亮的，這麼作只是早一點看到整個場景的光源
+
+```c
+while (not converage) {
+	set<Triangle> f = RadiosityTriangleCandiateCandidate();
+	parallel foreach triangle t in model
+		if (f.find(t))
+			continue;
+		foreach s in f
+			shader(s, t);
+	clearRadiosity(f);
+}
+```
+
+> 但 ... 平行無法按照原本的切割方式自適應
+
+* Q: 為什麼按照中線切割無法自適應？  
+A: 因為鄰居不在同一個 thread 中，那麼在切割鄰居就無法傳遞正確的能量。
+
+
+---
+
+class: center
+
+## Result
+
+.center[![](http://i.imgur.com/I46R1TF.jpg)]
+
+[Download Source Code @Github](https://github.com/morris821028/hw-radiosity)
+
+論文已死
+
     </textarea>
 	<script src="http://gnab.github.io/remark/downloads/remark-latest.min.js" type="text/javascript"></script>
     <script src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS_HTML&delayStartupUntil=configured" type="text/javascript"></script>
