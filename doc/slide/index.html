@@ -12,7 +12,7 @@
         font-family: 'Droid Serif', 'Microsoft JhengHei';
       }
       h1, h2, h3 {
-        font-family: 'Yanone Kaffeesatz';
+        font-family: 'Droid Serif', Helvetica, 'Yanone Kaffeesatz';
         font-weight: 400;
         margin-bottom: 0;
       }
@@ -153,7 +153,9 @@ R04922067 楊翔雲 R04922133 古君葳
 
 其中佔據效能因素是 Form-Factor 估算，因此有像 Hemicube 之類的近似逼近，大幅度減少計算量，但投影回到原本物件上會失真。
 
-`\(F_{ij} \approx \int_{y \in A_j} \frac{\cos \theta_x \cos \theta_y}{\pi r^2} V(x, y) dA_y\)`
+`\(F_{ij} = \frac{1}{A_i} \int_{A_i}\int_{A_j} \frac{\cos \phi_2 \cos \phi_1}{\pi r^2} dA_i dA_j\)`
+
+.center[![](http://i.imgur.com/mOMEPZR.gif)]
 
 ---
 ## Optimization
@@ -577,7 +579,7 @@ while (not converage) {
 
 ### Review Adaptive Splitting Method
 
-當偵測到綠色三角形頂點之間的 Form-Factor 差異過大時，使用最長邊中點切割，盡量產生銳角三角形，並且針對鄰居三角形分裂。
+當偵測到綠色三角形 `\(A\)` 頂點之間的 Form-Factor 差異過大時，使用最長邊中點切割，盡量產生銳角三角形，並且針對鄰居三角形分裂。
 
 為減少計算量，只算新增中心點 `\(P\)` 的 Form-Factor。對於下方的三角形 `\( B \)` 而言，分成兩種情況，已在這一輪完成計算，則重新計算 Form-Factor；反之，不做任何事。
 
@@ -605,8 +607,18 @@ while (not converage) {
 
 > 平行無法搭配自適應切割
 
-* Q: 為什麼按照中線切割無法自適應？  
-  A: 因為鄰居不在同一個 thread 中，那麼在切割鄰居就無法傳遞正確的能量。
+Q: 為什麼按照中線切割無法自適應？  
+A: 因為鄰居不在同一個 thread 中，那麼在切割鄰居就無法傳遞正確的能量。
+
+---
+
+### Splitting Triangle in Parallel
+
+為了解決鄰居在不同 thread 的問題，可以使用三角形的重心進行切割，可以解決 Dependency 的問題。
+
+.center[![](http://i.imgur.com/cI7z6Jx.png)]
+
+> 這部份尚未完成，預期可以解決平行上的困難，並達到不錯的效果。
 
 ---
 
@@ -633,61 +645,17 @@ Processor `\(P = 6\)` on HP-z420 Server
 ---
 
 
-### Snapshot - Blocks ###
+## Conclusion
 
-.center[![Parallel 4 sec. blocks](http://i.imgur.com/jiMeTE9.png)]
+* 透過編譯器技術，我們重新改寫助教的程式碼，並且加速 4 倍之多  
 
-> 為了在 WebGL 上呈現，最多 30000 個三角形，否則很容易產生破圖。
+* 基於多核心平台，我們提出平行計算的方法，並探討一些平行上的困難與解決方案，最後在 HP-z420 Server 上減少 `\(30\%\)` 的時間，就可得到近似的結果。
 
----
+----
 
-### Snapshot - Room ###
++ [Download Source Code @Github](https://github.com/morris821028/hw-radiosity)
 
-.center[![Parallel 28 sec. room](http://i.imgur.com/0pUng1j.png)]
-
-> 為了在 WebGL 上呈現，最多 30000 個三角形，否則很容易產生破圖。
-
----
-
-### Snapshot - Hall ###
-
-.center[![Parallel 43 sec. hall](http://i.imgur.com/3GnHkXJ.png)]
-
-> 為了在 WebGL 上呈現，最多 30000 個三角形，否則很容易產生破圖。
-
----
-
-### Snapshot - Church view 1 ###
-
-.center[![Parallel 27 sec. church](http://i.imgur.com/3Nkyg07.png)]
-
-> 為了在 WebGL 上呈現，最多 30000 個三角形，否則很容易產生破圖。
-
----
-
-### Snapshot - Church view 2 ###
-
-.center[![Parallel 27 sec. church](http://i.imgur.com/i4K0Stl.png)]
-
-> 為了在 WebGL 上呈現，最多 30000 個三角形，否則很容易產生破圖。
-
----
-
-class: center
-
-## Result
-
-<!--
-.center[![](http://i.imgur.com/I46R1TF.jpg)]
--->
-
-[Download Source Code @Github](https://github.com/morris821028/hw-radiosity)
-
-> Warning the demo website need download large files
-
-[Online Demo @LabServer(Temporary)](http://140.112.30.244:8888/demo/public/)
-
-論文已死
++ [Online Demo @LabServer(Temporary)](http://140.112.30.244:8888/demo/public/)
 
     </textarea>
 	<script src="http://gnab.github.io/remark/downloads/remark-latest.min.js" type="text/javascript"></script>
