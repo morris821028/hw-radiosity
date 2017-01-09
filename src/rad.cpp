@@ -27,6 +27,7 @@ float LightScale = 1.0;
 int TriangleLimit = 1000000;
 int WriteIteration = 10;
 int CompressResult = 0;
+bool InteractiveOutput = false;
 Triangle TriStore[MaxTri];
 int TriStorePtr;
 
@@ -193,6 +194,7 @@ void PrintOut(const char *fname, int loop)
 		else
 			puts("Failed");
 	}
+	if (InteractiveOutput)
 	{
 		char cmd[128] = "cd ./demo && ./run.sh ../";
 		strcat(cmd, fn);
@@ -330,9 +332,10 @@ void InitRad(void)
 	printf("       SampleArea      %f\n", SampleArea);
 	printf("       ConvergeLimit   %f\n", ConvergeLimit);
 	printf("       DeltaFFLimit    %f\n", DeltaFFLimit);
-	printf("       WriteIteration: %d\n", WriteIteration);
-	printf("       TriangleLimit:  %d\n", TriangleLimit);
-	printf("       LightScale:     %f\n", LightScale);
+	printf("       WriteIteration  %d\n", WriteIteration);
+	printf("       TriangleLimit   %d\n", TriangleLimit);
+	printf("       LightScale      %f\n", LightScale);
+	printf("       Interactive     %d\n", InteractiveOutput);
 	printf("[" KGRN "INFO" KWHT "] Complete initialization\n");
 }
 
@@ -504,13 +507,13 @@ void DoRadiosity(const char fileName[])
 char* ProcessOption(int argc, char *argv[], FILE* &fin)
 {
 	const char option[][16] = {"-debug", "-adapt_area", "-sample_area", "-converge", "-delta_ff", 
-				"-write_cycle", "-zip", "-triangle", "-light", "-o"};
+				"-write_cycle", "-zip", "-triangle", "-light", "-o", "-interactive"};
 	const int MAX_OPTION = sizeof(option) / sizeof(option[0]);
 	if (argc < 3) {
 		fprintf(stderr, "Usage: %s [options] input_file -o output_file\n", argv[0]);
 		fprintf(stderr, "OPTIONS\n");
 		fprintf(stderr, "   Debug Options\n");
-		fprintf(stderr, "       -debug <integer>    	Output intermediate result according debug level.\n");
+		fprintf(stderr, "       -debug <integer>        Output intermediate result according debug level.\n");
 		fprintf(stderr, "                               " KMAG "Default -debug %d\n\n" KWHT, Debug);
 		fprintf(stderr, "   Radiosity Options\n");
 		fprintf(stderr, "       -adapt_area <float>     The threahold of adaptive splitting algorithm.\n");
@@ -535,6 +538,9 @@ char* ProcessOption(int argc, char *argv[], FILE* &fin)
 		fprintf(stderr, "                               " KMAG "Defulat false\n" KWHT);
 		fprintf(stderr, "       -o </<path>/file>       Assign the prefix filename the output file\n");
 		fprintf(stderr, "                               " KMAG "Defulat ./test\n" KWHT);
+		fprintf(stderr, "       -interactive            Transfer the result into WebGL each write_cycle\n");
+		fprintf(stderr, "                               " KMAG "Defulat false\n" KWHT);
+
 		exit(1);
 	}
 	static char default_path[16] = "./test";
@@ -576,6 +582,9 @@ char* ProcessOption(int argc, char *argv[], FILE* &fin)
 					break;
 				case 9:
 					ofileName = argv[++i];
+					break;
+				case 10:
+					InteractiveOutput = true;
 					break;
 				default:
 					fprintf(stderr, "Invaild Option : %s", argv[i]);
