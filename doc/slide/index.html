@@ -363,7 +363,7 @@ int f(Arg p1p2) {
 
 移除指標 Aliasing，意指可能會指向相同記憶體位址，導致每次計算都要重新載入，不能放進暫存器中。
 
-如下述的寫法，編譯器無法判定 `srcTri` 是否與 `desTri` 相同，在累加時則重新載入 `srcTri->deltaB[]` 的數值，計算上可能會產生數次的 cache miss，隨著迴圈次數不斷突然效能差異。
+如下述的寫法，編譯器無法判定 `srcTri` 是否與 `desTri` 相同，在累加時則重新載入 `srcTri->deltaB[]` 的數值，計算上可能會產生數次的 cache miss，隨著迴圈次數不斷突顯效能差異。
 
 ```cpp
 void computeRadiosity(TrianglePtr srcTri, TrianglePtr desTri, float ff[3]) {
@@ -512,7 +512,6 @@ float computeFormFactor(TrianglePtr srcTri, int logSrc, TrianglePtr desTri, int 
 
 原始的算法中，每一次會挑選單位面積能量最多的那塊三角形 `\(f\)`，針對盤面上所有三角形 `\(t\)` 進行輻射。在輻射的過程中，若 `\(t\)` 三個頂點之間的能量差異大，可選擇自適應切割三角形。
 
-* 使用最長邊中點切割，盡可能增加銳角三角形，分裂的同時需要針對鄰居更新
 
 ```c
 while (not converage) {
@@ -522,6 +521,16 @@ while (not converage) {
 	clearRadiosity(f)
 }
 ```
+
+---
+
+### Review Adaptive Splitting Method
+
+當偵測到綠色三角形頂點之間的 Form-Factor 差異過大時，使用最長邊中點切割，盡量產生銳角三角形，並且針對鄰居三角形分裂。
+
+為減少計算量，只算新增中心點 `\(P\)` 的 Form-Factor。對於下方的三角形 `\( B \)` 而言，分成兩種情況，已在這一輪完成計算，則重新計算 Form-Factor；反之，不做任何事。
+
+![Adaptive Triangle Splitting](http://i.imgur.com/qd2QlKk.png)
 
 ---
 
