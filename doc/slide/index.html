@@ -23,6 +23,10 @@
       .remark-slide-content p { font-size: 1em; }
       .remark-slide-content blockquote { font-style: italic; }
       .remark-slide-content img { max-width: 90%; max-height: 400px; }
+      .remark-slide-content table { border: 1px solid #696969; width: 100%; margin: 1px;}
+      .remark-slide-content table thead { font-family: "Times New Roman"; }
+      .remark-slide-content table th, .remark-slide-content table td, .remark-slide-content table tr  { padding: 1px 2px; border: 1px solid #696969; }
+      .remark-slide-content table tbody { font-family: "Ubuntu Mono"; }
       .remark-slide-content .big { font-size: 8em; }
       .footnote {
         position: absolute;
@@ -417,6 +421,7 @@ void computeRadiosity(TrianglePtr srcTri, TrianglePtr desTri, float ff[3]) {
 }
 ```
 
+> 改善 `\(10\%\)` 效能
 
 ---
 
@@ -425,6 +430,8 @@ void computeRadiosity(TrianglePtr srcTri, TrianglePtr desTri, float ff[3]) {
 我們可以考慮使用 Copy 的方式放入較近的 stack 上，而非傳遞指標
 
 > 將資料放得近可提升 cache 使用率，隨著使用次數增加而明顯
+
+> 當運行次數多，才能讓 data reused 的比例上升，意即 `\(n\)` 要夠大。
 
 .left-column[
 ```c
@@ -444,9 +451,12 @@ int f(const Triangle *from) {
 ```
 ]
 
+
 ---
 
 ### Strength Reduction for Form-Factor ###
+
+根據公式 `\(F_{ij} \approx \int_{y \in A_j} \frac{\cos \theta_x \cos \theta_y}{\pi r^2} V(x, y) dA_y\)` 計算。
 
 ```c
 float computeFormFactor(TrianglePtr srcTri, int logSrc, TrianglePtr desTri, int logDes, Vector p) {
@@ -459,6 +469,21 @@ float computeFormFactor(TrianglePtr srcTri, int logSrc, TrianglePtr desTri, int 
 	return max(ff, 0.f);
 }
 ```
+
+效能考量的因素：
+
+* `RayHitted` 需要大量的計算  
+
+* `\(\frac{\cos \theta_x \cos \theta_y}{\pi r^2}\)` 在 `float` 儲存格式下可能無法得到貢獻
+
+> 解法如下頁所示
+
+---
+
+### Strength Reduction for Form-Factor - Solution ###
+
+優先計算 Form-Factor 的值，若存在貢獻再運行 `RayHitted` 判斷。
+
 
 ```c
 float computeFormFactor(TrianglePtr srcTri, int logSrc, TrianglePtr desTri, int logDes, Vector p) {
@@ -474,11 +499,26 @@ float computeFormFactor(TrianglePtr srcTri, int logSrc, TrianglePtr desTri, int 
 }
 ```
 
+> 改善近 `\(200\%\)` 的效能
+
+---
+
+### Result
+
+| Model           | Origin (sec.)        | Our Version (sec.) | Speedup |
+|:---------------:|---------------------:|-------------------:|--------:|
+| blocks.tri      |                      |                    |         |
+| room.tri        | 10.27                | 4.70               | 2.18    |
+| hall.tri        | 176.92               | 38.50              | 4.59    |
+| church.tri      | 72.32                | 42.64              | 1.69    |
+
 ---
 
 ### Comment
 
-光使用編譯器參數，下得好即可加速 2 倍之多，而 Strength Reduction for Form-Factor 章節講到的判斷提供 2 倍之快，而其他技術則提供了 10% ~ 20% 左右的效能改善。
+* 使用洽當的編譯器參數可加速 2 倍
+* Strength Reduction for Form-Factor 章節講到的判斷提供 2 倍之快
+* 剩餘優化部份改善 10% ~ 20% 效能。
 
 最後，我們加速了
 
@@ -622,7 +662,9 @@ class: center
 
 ## Result
 
+<!--
 .center[![](http://i.imgur.com/I46R1TF.jpg)]
+-->
 
 [Download Source Code @Github](https://github.com/morris821028/hw-radiosity)
 
@@ -644,12 +686,13 @@ class: center
           skipTags: ['script', 'noscript', 'style', 'textarea', 'pre']
           }
       });
+/*
       MathJax.Hub.Queue(function() {
-          $(MathJax.Hub.getAllJax()).map(function(index, elem) {
+          MathJax.Hub.getAllJax().map(function(index, elem) {
               return(elem.SourceElement());
           }).parent().addClass('has-jax');
       });
-
+*/
       MathJax.Hub.Configured();
     </script>
   </body>
