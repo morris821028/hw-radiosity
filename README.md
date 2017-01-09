@@ -48,6 +48,9 @@ OPTIONS
                                Defulat false
        -o </<path>/file>       Assign the prefix filename the output file
                                Defulat ./test
+       -interactive            Transfer the result into WebGL each write_cycle
+                               Defulat false
+
 ```
 
 ## Demo (WebGL) ##
