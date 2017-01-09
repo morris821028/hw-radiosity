@@ -1,0 +1,17 @@
+// Implement a fragment shader for Gauraud shading
+#version 120
+
+varying vec3 fragcolor;
+varying vec3 VertexPosition;
+
+//constant for the whole mesh
+uniform mat4 M;
+uniform mat4 V;
+uniform mat4 normat;
+uniform vec3 ligposwld;
+uniform vec3 ligcolor;
+
+void main()
+{
+	gl_FragColor = vec4(fragcolor, 1.0 );
+}

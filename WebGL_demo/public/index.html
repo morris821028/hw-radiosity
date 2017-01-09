@@ -1,0 +1,851 @@
+<html>
+
+<head>
+    <title>ICG WebGL &mdash; HW1</title>
+    <meta http-equiv="content-type" content="text/html; charset=ISO-8859-1">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <script type="text/javascript" src="javascripts/glMatrix-0.9.5.min.js"></script>
+    <script type="text/javascript" src="javascripts/webgl-utils.js"></script>
+    <script type="text/javascript" src="javascripts/marked.js"></script>
+
+    <link rel="stylesheet" href="stylesheets/pure-0.6.0/pure-min.css">
+
+<script type="text/javascript">
+
+    var gl, vs_src, fs_src;
+    var modelName = "asset/test.json";
+    var teapotData;
+
+    function initGL(canvas) {
+        try {
+            gl = canvas.getContext("experimental-webgl");
+            gl.viewportWidth = canvas.width;
+            gl.viewportHeight = canvas.height;
+            if (!gl.getExtension('OES_standard_derivatives')) {
+                throw 'extension not support';
+            }
+        } catch (e) {
+            console.log(e);
+        }
+        if (!gl) {
+            alert("Could not initialise WebGL, sorry :-(");
+        }
+    }
+    
+    function loadFile(file_path) {
+        var request = new XMLHttpRequest();
+        request.open("GET", file_path, false);
+        request.send(null);
+        if (request.status === 200) {
+            // console.log(request.responseText);
+            return request.responseText;
+        }
+        return "";
+    }
+	
+	function normalizeModel(model) {
+		var INF = 10000000;
+		var L = [INF, INF, INF], R = [-INF, -INF, -INF];
+		for (var i = 0; i < model.vertexPositions.length/3; i += 3) {
+			for (var j = 0; j < 3; j++) {
+				L[j] = Math.min(L[j], model.vertexPositions[i+j]);
+				R[j] = Math.max(R[j], model.vertexPositions[i+j]);
+			}
+		}
+		var maxSide = 0;
+		for (var i = 0; i < 3; i++)
+			maxSide = Math.max(maxSide, R[i] - L[i]);
+		var scale = 10 / maxSide;
+		console.log(maxSide + ", " + scale + ", " + model.vertexPositions.length/3/3);
+		for (var i = 0; i < model.vertexPositions.length/3; i += 3) {
+			for (var j = 0; j < 3; j++) {
+				model.vertexPositions[i+j] -= L[j];
+				model.vertexPositions[i+j] *= scale;
+				model.vertexPositions[i+j] -= 10 * 0.5;
+			}
+		}
+	}
+    function loadTeapot() {
+        var text = loadFile(modelName);
+        teapotData = JSON.parse(text);
+//		normalizeModel(teapotData);
+        return teapotData;
+    }
+    function loadShaderSource(vs_path, fs_path) {
+        vs_src = loadFile(vs_path);
+        fs_src = loadFile(fs_path);
+    }
+    function makeShader(gl, src, type) {
+        try {
+            var shader = gl.createShader(type);
+            gl.shaderSource(shader, src);
+            gl.compileShader(shader);
+
+            if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+                alert(gl.getShaderInfoLog(shader));
+                return null;
+            }
+
+            return shader;
+        } catch (e) {
+            console.log(e);
+            return null;
+        }
+    }
+
+    var shader;
+    function loadShaders() {
+        shader = {
+            flat: initShader('flat'),
+            gouraud: initShader('gouraud'),
+            phong: initShader('phong'),
+        };
+    }
+    function initShader(shading_method) {
+        loadShaderSource("lib/" + shading_method + ".vs", "lib/" + shading_method + ".fs");
+
+        var fragmentShader = makeShader(gl, fs_src, gl.FRAGMENT_SHADER);
+        var vertexShader = makeShader(gl, vs_src, gl.VERTEX_SHADER);
+
+        var shaderProgram = gl.createProgram();
+        gl.attachShader(shaderProgram, vertexShader);
+        gl.attachShader(shaderProgram, fragmentShader);
+        gl.linkProgram(shaderProgram);
+
+        if (!gl.getProgramParameter(shaderProgram, gl.LINK_STATUS)) {
+            alert("Could not initialise shaders");
+        }
+
+        gl.useProgram(shaderProgram);
+
+        shaderProgram.vertexPositionAttribute = gl.getAttribLocation(shaderProgram, "aVertexPosition");
+        gl.enableVertexAttribArray(shaderProgram.vertexPositionAttribute);
+
+        shaderProgram.vertexNormalAttribute = gl.getAttribLocation(shaderProgram, "aVertexNormal");
+        gl.enableVertexAttribArray(shaderProgram.vertexNormalAttribute);
+
+        shaderProgram.textureCoordAttribute = gl.getAttribLocation(shaderProgram, "aTextureCoord");
+        gl.enableVertexAttribArray(shaderProgram.textureCoordAttribute);
+
+        if (teapotData.colorful === true) {
+            shaderProgram.vertexFrontColor = gl.getAttribLocation(shaderProgram, "aVertexFrontColor");
+            if (shaderProgram.vertexFrontColor >= 0)
+                gl.enableVertexAttribArray(shaderProgram.vertexFrontColor);
+/*
+            shaderProgram.vertexBackColor = gl.getAttribLocation(shaderProgram, "aVertexBackColor");
+            gl.enableVertexAttribArray(shaderProgram.vertexBackColor);
+*/
+        }
+
+        shaderProgram.pMatrixUniform = gl.getUniformLocation(shaderProgram, "uPMatrix");
+        shaderProgram.mvMatrixUniform = gl.getUniformLocation(shaderProgram, "uMVMatrix");
+        shaderProgram.nMatrixUniform = gl.getUniformLocation(shaderProgram, "uNMatrix");
+        shaderProgram.samplerUniform = gl.getUniformLocation(shaderProgram, "uSampler");
+        shaderProgram.materialShininessUniform = gl.getUniformLocation(shaderProgram, "uMaterialShininess");
+ 
+        shaderProgram.ambientColorUniform = gl.getUniformLocation(shaderProgram, "uAmbientColor");
+        shaderProgram.pointLightingEnabledUniform = gl.getUniformLocation(shaderProgram, "uPointEnabled");
+        shaderProgram.pointLightingLocationUniform = gl.getUniformLocation(shaderProgram, "uPointLightingLocation");
+        shaderProgram.pointLightingSpecularColorUniform = gl.getUniformLocation(shaderProgram, "uPointLightingSpecularColor");
+        shaderProgram.pointLightingDiffuseColorUniform = gl.getUniformLocation(shaderProgram, "uPointLightingDiffuseColor");
+        shaderProgram.triangleColor = gl.getUniformLocation(shaderProgram, "uTriangleColor");
+        return shaderProgram;
+    }
+
+
+    function handleLoadedTexture(texture) {
+        gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+        gl.bindTexture(gl.TEXTURE_2D, texture);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, texture.image);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_NEAREST);
+        gl.generateMipmap(gl.TEXTURE_2D);
+
+        gl.bindTexture(gl.TEXTURE_2D, null);
+    }
+
+
+    var earthTexture;
+    var galvanizedTexture;
+
+    function initTextures() {
+        earthTexture = gl.createTexture();
+        earthTexture.image = new Image();
+        earthTexture.image.onload = function () {
+            handleLoadedTexture(earthTexture)
+        }
+        earthTexture.image.src = "images/earth.jpg";
+
+        galvanizedTexture = gl.createTexture();
+        galvanizedTexture.image = new Image();
+        galvanizedTexture.image.onload = function () {
+            handleLoadedTexture(galvanizedTexture)
+        }
+        galvanizedTexture.image.src = "images/galvanizedTexture.jpg";
+        // galvanizedTexture.image.src = "images/red.jpg";
+    }
+
+
+    var mvMatrix = mat4.create();
+    var mvMatrixStack = [];
+    var pMatrix = mat4.create();
+
+
+    function setMatrixUniforms(shaderProgram) {
+        gl.uniformMatrix4fv(shaderProgram.pMatrixUniform, false, pMatrix);
+        gl.uniformMatrix4fv(shaderProgram.mvMatrixUniform, false, mvMatrix);
+
+        var normalMatrix = mat3.create();
+        mat4.toInverseMat3(mvMatrix, normalMatrix);
+        mat3.transpose(normalMatrix);
+        gl.uniformMatrix3fv(shaderProgram.nMatrixUniform, false, normalMatrix);
+    }
+
+    function degToRad(degrees) {
+        return degrees * Math.PI / 180;
+    }
+
+
+    var teapotVertexPositionBuffer;
+    var teapotVertexNormalBuffer;
+    var teapotVertexTextureCoordBuffer;
+    var teapotVertexIndexBuffer;
+    var teapotVertexFrontColorBuffer;
+    var teapotVertexBackColorBuffer;
+
+    function handleLoadedTeapot(teapotData) {
+        teapotVertexNormalBuffer = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, teapotVertexNormalBuffer);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(teapotData.vertexNormals), gl.STATIC_DRAW);
+        teapotVertexNormalBuffer.itemSize = 3;
+        teapotVertexNormalBuffer.numItems = teapotData.vertexNormals.length / 3;
+
+        teapotVertexTextureCoordBuffer = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, teapotVertexTextureCoordBuffer);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(teapotData.vertexTextureCoords), gl.STATIC_DRAW);
+        teapotVertexTextureCoordBuffer.itemSize = 2;
+        teapotVertexTextureCoordBuffer.numItems = teapotData.vertexTextureCoords.length / 2;
+
+        teapotVertexPositionBuffer = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, teapotVertexPositionBuffer);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(teapotData.vertexPositions), gl.STATIC_DRAW);
+        teapotVertexPositionBuffer.itemSize = 3;
+        teapotVertexPositionBuffer.numItems = teapotData.vertexPositions.length / 3;
+
+        teapotVertexIndexBuffer = gl.createBuffer();
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, teapotVertexIndexBuffer);
+        gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(teapotData.indices), gl.STATIC_DRAW);
+        teapotVertexIndexBuffer.itemSize = 1;
+        teapotVertexIndexBuffer.numItems = teapotData.indices.length;
+
+        if (teapotData.colorful) {
+            teapotVertexFrontColorBuffer = gl.createBuffer();
+            gl.bindBuffer(gl.ARRAY_BUFFER, teapotVertexFrontColorBuffer);
+            gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(teapotData.vertexFrontColors), gl.STATIC_DRAW);
+
+            teapotVertexFrontColorBuffer.itemSize = 3;
+            teapotVertexFrontColorBuffer.numItems = teapotData.vertexFrontColors.length / 3;
+/*
+            teapotVertexBackColorBuffer = gl.createBuffer();
+            gl.bindBuffer(gl.ARRAY_BUFFER, teapotVertexBackColorBuffer);
+            gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(teapotData.vertexBackColors), gl.STATIC_DRAW);
+            teapotVertexBackColorBuffer.itemSize = 3;
+            teapotVertexBackColorBuffer.numItems = teapotData.vertexBackColors.length / 3;
+*/
+        }
+
+        document.getElementById("loadingtext").textContent = "";
+    }
+
+
+    var eyeview = {
+        xRot: 0,
+        xSpeed: 0,
+        yRot: 0,
+        ySpeed: 0,
+        xScale: 1,
+        yScale: 1,
+        zScale: 1,
+        xShear: 0,
+        x: 0,
+        y: 0,
+        z: -40,
+        filter: 0
+    };
+
+    function drawAxis() {
+        gl.viewport(0, 0, gl.viewportWidth, gl.viewportHeight);
+    }
+
+    function setShaderAttribute(shaderProgram) {
+        gl.uniform3f(
+            shaderProgram.ambientColorUniform,
+            parseFloat(document.getElementById("ambientR").value),
+            parseFloat(document.getElementById("ambientG").value),
+            parseFloat(document.getElementById("ambientB").value)
+        );
+
+        // two light source
+        var lightLocationArray = [],
+            lightEnabledArray = [];
+        for (var i = 0; i < 3; i++) {
+            lightLocationArray.push(parseFloat(document.getElementById("lightPositionX-" + i).value));
+            lightLocationArray.push(parseFloat(document.getElementById("lightPositionY-" + i).value));
+            lightLocationArray.push(parseFloat(document.getElementById("lightPositionZ-" + i).value));
+            lightEnabledArray.push(Boolean(document.getElementById('lightPoint-' + i + '-enable').checked) ? 1.0 : 0.0);
+        }
+        gl.uniform3fv(
+            shaderProgram.pointLightingLocationUniform,  lightLocationArray
+        );
+        gl.uniform1fv(
+            shaderProgram.pointLightingEnabledUniform, lightEnabledArray
+        );
+
+        gl.uniform3f(
+            shaderProgram.pointLightingSpecularColorUniform,
+            parseFloat(document.getElementById("specularR").value),
+            parseFloat(document.getElementById("specularG").value),
+            parseFloat(document.getElementById("specularB").value)
+        );
+
+        gl.uniform3f(
+            shaderProgram.pointLightingDiffuseColorUniform,
+            parseFloat(document.getElementById("diffuseR").value),
+            parseFloat(document.getElementById("diffuseG").value),
+            parseFloat(document.getElementById("diffuseB").value)
+        );
+
+        gl.uniform1i(shaderProgram.triangleColor, teapotData.colorful === true ? 1 : 0);
+
+        gl.activeTexture(gl.TEXTURE0);
+
+        gl.bindTexture(gl.TEXTURE_2D, galvanizedTexture);
+        
+        gl.uniform1i(shaderProgram.samplerUniform, 0);
+
+        gl.uniform1f(shaderProgram.materialShininessUniform, parseFloat(document.getElementById("shininess").value));
+
+        gl.bindBuffer(gl.ARRAY_BUFFER, teapotVertexPositionBuffer);
+        gl.vertexAttribPointer(shaderProgram.vertexPositionAttribute, teapotVertexPositionBuffer.itemSize, gl.FLOAT, false, 0, 0);
+
+        gl.bindBuffer(gl.ARRAY_BUFFER, teapotVertexTextureCoordBuffer);
+        gl.vertexAttribPointer(shaderProgram.textureCoordAttribute, teapotVertexTextureCoordBuffer.itemSize, gl.FLOAT, false, 0, 0);
+
+        gl.bindBuffer(gl.ARRAY_BUFFER, teapotVertexNormalBuffer);
+        gl.vertexAttribPointer(shaderProgram.vertexNormalAttribute, teapotVertexNormalBuffer.itemSize, gl.FLOAT, false, 0, 0);
+
+        if (teapotData.colorful === true) {
+            gl.bindBuffer(gl.ARRAY_BUFFER, teapotVertexFrontColorBuffer);
+            gl.vertexAttribPointer(shaderProgram.vertexFrontColor, teapotVertexFrontColorBuffer.itemSize, gl.FLOAT, false, 0, 0);
+/*
+            gl.bindBuffer(gl.ARRAY_BUFFER, teapotVertexBackColorBuffer);
+            gl.vertexAttribPointer(shaderProgram.vertexBackColor, teapotVertexBackColorBuffer.itemSize, gl.FLOAT, false, 0, 0);
+*/
+        }
+    }
+
+    function drawSceneBegin() {
+        gl.viewport(0, 0, gl.viewportWidth, gl.viewportHeight);
+        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+    }
+    function drawSceneEnd() {
+
+    }
+    function drawScene(shaderProgram, extraMvArr, extraScArr) {
+        if (teapotVertexPositionBuffer == null || 
+            teapotVertexNormalBuffer == null || 
+            teapotVertexTextureCoordBuffer == null || 
+            teapotVertexIndexBuffer == null) {
+            return;
+        }
+
+        mat4.perspective(45, gl.viewportWidth / gl.viewportHeight, 0.1, 100.0, pMatrix);
+        
+        gl.useProgram(shaderProgram);
+
+        setShaderAttribute(shaderProgram);
+
+        mat4.identity(mvMatrix);
+
+        mat4.translate(mvMatrix, [eyeview.x, eyeview.y, eyeview.z]);
+        extraScArr[0] *= eyeview.xScale;
+        extraScArr[1] *= eyeview.yScale;
+        extraScArr[2] *= eyeview.zScale;
+        mat4.translate(mvMatrix, extraMvArr);
+        mat4.scale(mvMatrix, extraScArr);
+        mat4.rotate(mvMatrix, degToRad(eyeview.xRot), [1, 0, 0]);
+        mat4.rotate(mvMatrix, degToRad(eyeview.yRot), [0, 1, 0]);
+
+        var newShearMatrix = mat4.create();
+        mat4.identity(newShearMatrix);
+        newShearMatrix[1] = eyeview.xShear;
+        mat4.multiply(newShearMatrix, mvMatrix, mvMatrix);
+
+        mat4.multiply(mvMatrix, sphereRotationMatrix);
+
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, teapotVertexIndexBuffer);
+        setMatrixUniforms(shaderProgram);
+        gl.drawElements(gl.TRIANGLES, teapotVertexIndexBuffer.numItems, gl.UNSIGNED_SHORT, 0);
+    }
+
+
+    var lastTime = 0;
+    function animate() {
+        var timeNow = new Date().getTime();
+        if (lastTime != 0) {
+            var elapsed = timeNow - lastTime;
+            eyeview.xRot += (eyeview.xSpeed * elapsed) / 1000.0;
+            eyeview.yRot += (eyeview.ySpeed * elapsed) / 1000.0;
+        }
+        lastTime = timeNow;
+    }
+
+    var currentlyPressedKeys = {};
+    var mouseDown = false;
+    var lastMouseX = null;
+    var lastMouseY = null;
+
+    var sphereRotationMatrix = mat4.create();
+    mat4.identity(sphereRotationMatrix);
+
+    function handleMouseDown(event) {
+        mouseDown = true;
+        lastMouseX = event.clientX;
+        lastMouseY = event.clientY;
+    }
+
+
+    function handleMouseUp(event) {
+        mouseDown = false;
+    }
+
+
+    function handleMouseMove(event) {
+        if (!mouseDown) {
+            return;
+        }
+        var newX = event.clientX;
+        var newY = event.clientY;
+
+        var deltaX = newX - lastMouseX
+        var newRotationMatrix = mat4.create();
+        mat4.identity(newRotationMatrix);
+        mat4.rotate(newRotationMatrix, degToRad(deltaX / 10), [0, 1, 0]);
+
+        var deltaY = newY - lastMouseY;
+        mat4.rotate(newRotationMatrix, degToRad(deltaY / 10), [1, 0, 0]);
+
+        mat4.multiply(newRotationMatrix, sphereRotationMatrix, sphereRotationMatrix);
+        
+        lastMouseX = newX
+        lastMouseY = newY;
+    }
+
+    function handleKeyDown(event) {
+        currentlyPressedKeys[event.keyCode] = true;
+
+        if (String.fromCharCode(event.keyCode) == "F") {
+            eyeview.filter += 1;
+            if (eyeview.filter == 3) {
+                    eyeview.filter = 0;
+            }
+        }
+    }
+
+
+    function handleKeyUp(event) {
+        currentlyPressedKeys[event.keyCode] = false;
+    }
+
+
+    function handleKeys() {
+		if (currentlyPressedKeys[87]) {
+            // Page Up
+            eyeview.z -= 0.20;
+        }
+        if (currentlyPressedKeys[83]) {
+            // Page Down
+            eyeview.z += 0.20;
+        }
+        if (currentlyPressedKeys[65]) {
+            // Insert
+            eyeview.x -= 0.20;
+        }
+        if (currentlyPressedKeys[68]) {
+            // Delete
+            eyeview.x += 0.20;
+        }
+        if (currentlyPressedKeys[81]) {
+            // Home
+            eyeview.y -= 0.20;
+        }
+        if (currentlyPressedKeys[69]) {
+            // End
+            eyeview.y += 0.20;
+        }
+        if (currentlyPressedKeys[35]) {
+            // End
+            eyeview.y += 1.00;
+        }
+        if (currentlyPressedKeys[37]) {
+            // Left cursor key
+            eyeview.ySpeed -= 1;
+        }
+        if (currentlyPressedKeys[39]) {
+            // Right cursor key
+            eyeview.ySpeed += 1;
+        }
+        if (currentlyPressedKeys[38]) {
+            // Up cursor key
+            eyeview.xSpeed -= 1;
+        }
+        if (currentlyPressedKeys[40]) {
+            // Down cursor key
+            eyeview.xSpeed += 1;
+        }
+        if (currentlyPressedKeys[16]) {
+            eyeview.xScale += 0.1;
+        }
+        if (currentlyPressedKeys[17]) {
+            eyeview.xScale -= 0.1;
+        }
+        if (currentlyPressedKeys[18]) {
+            eyeview.xShear += 0.01;
+        }
+        if (currentlyPressedKeys[9]) {
+            eyeview.xShear -= 0.01;
+        }
+    }
+
+
+    function tick() {
+        requestAnimFrame(tick);
+        handleKeys();
+
+        var selectShader = shader[document.querySelector('input[name="optionsShading"]:checked').value];
+        drawSceneBegin();
+        drawScene(selectShader, [0, 5, 10], [1, 1, 1]);
+        // drawScene(shader['flat'], [-20, -15, -10], [0.5, 0.5, 0.5]);
+        // drawScene(shader['gouraud'], [0, -15, -10], [0.5, 0.5, 0.5]);
+        // drawScene(shader['phong'], [20, -15, -10], [0.5, 0.5, 0.5]);
+        drawSceneEnd();
+
+        animate();
+    }
+
+
+    function webGLStart() {
+        loadTeapot();
+
+        var canvas = document.getElementById("ICG-canvas");
+        initGL(canvas);
+        loadShaders();
+        initTextures();
+
+        handleLoadedTeapot(teapotData);
+
+        gl.clearColor(0.0, 0.2, 0.2, 1.0);
+        gl.enable(gl.DEPTH_TEST);
+
+        // keyboard
+        document.onkeydown = handleKeyDown;
+        document.onkeyup = handleKeyUp;
+
+        // mouse
+        canvas.onmousedown = handleMouseDown;
+        document.onmouseup = handleMouseUp;
+        document.onmousemove = handleMouseMove;
+
+        tick();
+    }
+
+    function handleShading(elem) {
+        initShaders(document.querySelector('input[name="optionsShading"]:checked').value);
+    }
+
+    var webGLconfig = [
+        {        tag: 'shininess', value: 32.0    },
+        {        tag: 'specularR', value: 0.8    },
+        {        tag: 'specularG', value: 0.8    },
+        {        tag: 'specularB', value: 0.8    },
+        {        tag: 'diffuseR', value: 0.8    },
+        {        tag: 'diffuseG', value: 0.8    },
+        {        tag: 'diffuseB', value: 0.8    },
+        {        tag: 'ambientR', value: 0.2    },
+        {        tag: 'ambientG', value: 0.2    },
+        {        tag: 'ambientB', value: 0.2    },
+        ];
+    var webGLLightConfig = [
+        {        tag: 'lightPositionX-0', value: -10.0    },
+        {        tag: 'lightPositionY-0', value: 4.0    },
+        {        tag: 'lightPositionZ-0', value: -20.0    },
+        {        tag: 'lightPositionX-1', value: 90.0    },
+        {        tag: 'lightPositionY-1', value: -80.0    },
+        {        tag: 'lightPositionZ-1', value: -60.0    },
+        {        tag: 'lightPositionX-2', value: 100.0    },
+        {        tag: 'lightPositionY-2', value: 40.0    },
+        {        tag: 'lightPositionZ-2', value: -200.0    },
+    ];
+    function setDefaultConfig() {
+        document.getElementById("option-1").checked = true;
+        for (var i in webGLconfig) {
+            var tagId = webGLconfig[i].tag;
+            var newValue = webGLconfig[i].value;
+            document.getElementById(tagId).value=newValue;
+            document.getElementById(tagId + '-val').innerHTML=newValue;
+        }
+        for (var i in webGLLightConfig) {
+            var tagId = webGLLightConfig[i].tag;
+            var newValue = webGLLightConfig[i].value;
+            document.getElementById(tagId).value=newValue;
+            document.getElementById(tagId).min = -300;
+            document.getElementById(tagId).max = 300;
+            document.getElementById(tagId + '-val').innerHTML=newValue;
+        }
+        for (var i = 0; i < 3; i++) {
+            document.getElementById('lightPoint-' + i + '-enable').checked = true;
+        }
+    }
+    function changeModel(model) {
+        modelName = "asset/" + model + ".json";
+        webGLStart();
+    }
+</script>
+
+<style type="text/css">
+#loadingtext {
+    position:absolute;
+    top:250px;
+    left:150px;
+    font-size:2em;
+    color: white;
+}
+canvas {
+    padding-left: 0;
+    padding-right: 0;
+    margin-left: auto;
+    margin-right: auto;
+    display: block;
+}
+body {
+    color: rgb(119, 119, 119);
+    font-family: sans-serif;
+    font-size: 18px;
+    margin: auto;
+    padding: auto;
+}
+</style>
+
+
+</head>
+
+
+<body onload="webGLStart();">
+
+<div class="pure-g" style="margin: auto;">
+    <div class="pure-u-1" style="overflow: auto;">
+        <canvas id="ICG-canvas" style="border: none;" width="1024" height="768"></canvas>
+        <div id="loadingtext">Loading world...</div>
+    </div>
+    <div class="pure-u-1" style="height: 600px; overflow-y: auto; background: white; overflow-x: scroll;">
+<div class="pure-g" style="padding: 20px;margin: 5%;">
+    <div class="pure-u-1">
+        <button class="pure-button" onclick="setDefaultConfig()">Default</button>
+    </div>
+    <div class="pure-u-1">
+            <style scoped>
+                .pure-button {
+                    font-size: 70%;
+                    margin: 2px 1px;
+                }
+            </style>
+            <h3>Model</h3>
+            <button class="pure-button" onclick="changeModel('test')">test</button>
+            <button class="pure-button" onclick="changeModel('parallel-blocks4s')">parallel-blocks4s</button>
+            <button class="pure-button" onclick="changeModel('parallel-room28s')">parallel-room28s</button>
+            <button class="pure-button" onclick="changeModel('parallel-church27s')">parallel-church27s</button>
+            <button class="pure-button" onclick="changeModel('parallel-hall43s')">parallel-hall43s</button>
+    </div>
+    <div class="pure-u-1">
+        <form class="pure-form">
+            <legend>Shading</legend>
+            <label for="option-1" class="pure-radio">
+                <input id="option-1" type="radio" name="optionsShading" onclick="handleShading(this);" value="flat" checked> Flat
+            </label>
+            <label for="option-2" class="pure-radio">
+                <input id="option-2" type="radio" name="optionsShading" onclick="handleShading(this);" value="gouraud"> Gouraud
+            </label>
+            <label for="option-3" class="pure-radio">
+                <input id="option-3" type="radio" name="optionsShading" onclick="handleShading(this);" value="phong" > Phong
+            </label>
+        </form>
+    </div>
+</div>
+
+<div class="pure-g" style="padding: 20px;margin: 5%;">
+    <div class="pure-u-1" id="light-setting">
+        <form class="pure-form pure-form-aligned">
+            <legend>Material</legend>
+            <fieldset>
+                <div class="pure-control-group">
+                    <label for="shininess" class="pure-range"> Shininess </label>
+                    <input type="range" id="shininess" value="32.0" min="0" max="100" step="0.5" oninput="showValue(this.value, 'shininess-val');">
+                    <span id="shininess-val"></span>
+                </div>
+            </fieldset>
+        </form>
+        <form class="pure-form pure-form-aligned">
+            <legend>Point Light Location <a href="https://en.wikipedia.org/wiki/Three-point_lighting">Wikipedia - Three-point lighting</a></legend>
+            <fieldset>
+                <div class="pure-control-group">
+                    <label for="lightPoint-0-enable" class="pure-checkbox">L1</label>
+                    <input id="lightPoint-0-enable" type="checkbox"> Main Light
+                </div>
+                <div class="pure-control-group">
+                    <label for="lightPoint-1-enable" class="pure-checkbox">L2</label>
+                    <input id="lightPoint-1-enable" type="checkbox"> Key Light
+                </div>
+                <div class="pure-control-group">
+                    <label for="lightPoint-2-enable" class="pure-checkbox">L3</label>
+                    <input id="lightPoint-2-enable" type="checkbox"> Back Light
+                </div>
+            </fieldset>
+            <fieldset>
+                <div class="pure-control-group">
+                    <label for="lightPositionX-0" class="pure-range">X </label>
+                    <input type="range" id="lightPositionX-0" value="-10.0" min="-100" max="100" oninput="showValue(this.value, 'lightPositionX-0-val');">
+                    <span id="lightPositionX-0-val"></span>
+                </div>
+                <div class="pure-control-group">
+                    <label for="lightPositionY-0" class="pure-range">Y </label>
+                    <input type="range" id="lightPositionY-0" value="4.0" min="-100" max="100" oninput="showValue(this.value, 'lightPositionY-0-val');">
+                    <span id="lightPositionY-0-val"></span>
+                </div>
+                <div class="pure-control-group">
+                    <label for="lightPositionZ-0" class="pure-range">Z </label> 
+                    <input type="range" id="lightPositionZ-0" value="-20.0" min="-100" max="100" oninput="showValue(this.value, 'lightPositionZ-0-val');">
+                    <span id="lightPositionZ-0-val"></span>
+                </div>
+            </fieldset>
+            <fieldset>
+                <div class="pure-control-group">
+                    <label for="lightPositionX-1" class="pure-range">X </label>
+                    <input type="range" id="lightPositionX-1" value="10.0" min="-200" max="200" oninput="showValue(this.value, 'lightPositionX-1-val');">
+                    <span id="lightPositionX-1-val"></span>
+                </div>
+                <div class="pure-control-group">
+                    <label for="lightPositionY-1" class="pure-range">Y </label>
+                    <input type="range" id="lightPositionY-1" value="4.0" min="-200" max="200" oninput="showValue(this.value, 'lightPositionY-1-val');">
+                    <span id="lightPositionY-1-val"></span>
+                </div>
+                <div class="pure-control-group">
+                    <label for="lightPositionZ-1" class="pure-range">Z </label> 
+                    <input type="range" id="lightPositionZ-1" value="-20.0" min="-200" max="200" oninput="showValue(this.value, 'lightPositionZ-1-val');">
+                    <span id="lightPositionZ-1-val"></span>
+                </div>
+            </fieldset>
+            <fieldset>
+                <div class="pure-control-group">
+                    <label for="lightPositionX-2" class="pure-range">X </label>
+                    <input type="range" id="lightPositionX-2" value="10.0" min="-200" max="200" oninput="showValue(this.value, 'lightPositionX-2-val');">
+                    <span id="lightPositionX-2-val"></span>
+                </div>
+                <div class="pure-control-group">
+                    <label for="lightPositionY-2" class="pure-range">Y </label>
+                    <input type="range" id="lightPositionY-2" value="4.0" min="-200" max="200" oninput="showValue(this.value, 'lightPositionY-2-val');">
+                    <span id="lightPositionY-2-val"></span>
+                </div>
+                <div class="pure-control-group">
+                    <label for="lightPositionZ-2" class="pure-range">Z </label> 
+                    <input type="range" id="lightPositionZ-2" value="-20.0" min="-200" max="200" oninput="showValue(this.value, 'lightPositionZ-2-val');">
+                    <span id="lightPositionZ-2-val"></span>
+                </div>
+            </fieldset>
+        </form>
+        <form class="pure-form pure-form-aligned">
+            <legend>Specular Colour</legend>
+            <fieldset>
+                <div class="pure-control-group">
+                    <label for="specularR" class="pure-range"> R </label>
+                    <input type="range" id="specularR" value="0.8" min="0" max="1" step="0.01" oninput="showValue(this.value, 'specularR-val');">
+                    <span id="specularR-val"></span>
+                </div>
+                <div class="pure-control-group">
+                    <label for="specularG" class="pure-range"> G </label>
+                    <input type="range" id="specularG" value="0.8" min="0" max="1" step="0.01" oninput="showValue(this.value, 'specularG-val');">    
+                    <span id="specularG-val"></span>
+                </div>
+                <div class="pure-control-group">
+                    <label for="specularB" class="pure-range"> B </label>
+                    <input type="range" id="specularB" value="0.8" min="0" max="1" step="0.01" oninput="showValue(this.value, 'specularB-val');">
+                    <span id="specularB-val"></span>
+                </div>
+            </fieldset>
+        </form>
+        <form class="pure-form pure-form-aligned">
+            <legend>Diffuse Colour</legend>
+            <fieldset>
+                <div class="pure-control-group">
+                    <label for="diffuseR" class="pure-range"> R </label>
+                    <input type="range" id="diffuseR" value="0.8" min="0" max="1" step="0.01">
+                    <span id="diffuseR-val"></span>
+                </div>
+                <div class="pure-control-group">
+                    <label for="diffuseG" class="pure-range"> G </label>
+                    <input type="range" id="diffuseG" value="0.8" min="0" max="1" step="0.01">
+                    <span id="diffuseG-val"></span>
+                </div>
+                <div class="pure-control-group">
+                    <label for="diffuseB" class="pure-range"> B </label>
+                    <input type="range" id="diffuseB" value="0.8" min="0" max="1" step="0.01">
+                    <span id="diffuseB-val"></span>
+                </div>
+            </fieldset>
+        </form>
+        <form class="pure-form pure-form-aligned">
+            <legend>Ambient Light Colour</legend>
+            <fieldset>
+                <div class="pure-control-group">
+                    <label for="ambientR" class="pure-range"> R </label>
+                    <input type="range" id="ambientR" value="0.2" min="0" max="1" step="0.01">
+                    <span id="ambientR-val"></span>
+                </div>
+                <div class="pure-control-group">
+                    <label for="ambientG" class="pure-range"> G </label>
+                    <input type="range" id="ambientG" value="0.2" min="0" max="1" step="0.01">
+                    <span id="ambientG-val"></span>
+                </div>
+                <div class="pure-control-group">
+                    <label for="ambientB" class="pure-range"> B </label>
+                    <input type="range" id="ambientB" value="0.2" min="0" max="1" step="0.01">
+                    <span id="ambientB-val"></span>
+                </div>
+            </fieldset>
+        </form>
+    </div>
+</div>
+    </div>
+</div>
+
+<div class="pure-g" style="margin: auto;">
+    <div class="pure-u-1" id='README' style="overflow-y: auto; height: 600px; background: white; padding: 20px;margin: 5%; font-family: Georgia, Times, 'Times New Roman', Microsoft JhengHei;">
+
+    </div>
+</div>
+
+<script type="text/javascript">
+document.getElementById('README').innerHTML = marked(loadFile('README.md'));
+function showValue(newValue, tagId) {
+    document.getElementById(tagId).innerHTML=newValue;
+}
+setDefaultConfig();
+window.onkeydown = function(e){
+   if (e.keycode == 33 || e.keycode == 34 || e.keycode == 38 || e.keycode == 40) {
+       e.preventDefault();
+   }
+}
+</script>
+</body>
+
+</html>
