@@ -1,0 +1,45 @@
+// Implement a fragment shader for Gauraud shading
+#version 120
+
+varying vec3 fragcolor;
+varying vec3 VertexPosition;
+
+//constant for the whole mesh
+uniform mat4 M;
+uniform mat4 V;
+uniform mat4 normat;
+uniform vec3 ligposwld;
+uniform vec3 ligcolor;
+
+void main()
+{
+	//vec3 FragmentNormal = normalize(-cross(dFdy(VertexPosition), dFdx(VertexPosition)));
+	vec3 FragmentNormal = normalize(cross(dFdx(VertexPosition), dFdy(VertexPosition)));
+	
+	vec3 vertposcam = ( V * M * vec4(VertexPosition, 1.0) ).xyz;
+
+	vec3 viewdircam = vec3(0.0, 0.0, 0.0) - vertposcam; 
+	
+
+	vec3 ligposcam = ( V * vec4(ligposwld, 1.0) ).xyz;
+	vec3 ligdircam = ligposcam + viewdircam;
+	
+	vec3 vertnormcam = ( normat * vec4(FragmentNormal, 0.0) ).xyz;
+
+	vec3 N = normalize(vertnormcam);
+	vec3 L = normalize(ligdircam);
+	vec3 V = normalize(viewdircam);
+	vec3 R = normalize( reflect(-L, N) );
+
+	vec3 ambcolor = 0.1 * fragcolor;
+	
+	float cosT = max( dot(L, N), 0 );
+	
+	vec3 diffcolor = fragcolor *  ligcolor * cosT;
+
+	float cosA = max( dot(R, V), 0 );
+	vec3 specolor =  ligcolor * pow( cosA, 5 );
+
+	gl_FragColor = vec4(ambcolor + diffcolor + specolor, 1.0 );
+	//gl_FragColor = vec4(ligdircam, 1.0 );
+}
