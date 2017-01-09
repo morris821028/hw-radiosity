@@ -137,9 +137,13 @@ R04922067 楊翔雲 R04922133 古君葳
 
 ## Introduction
 
-熱輻射算法公式 `\(B_i dA_i = E_i dA_i + R_i \int_j B_j F_{ji} dA_j\)`
+熱輻射算法公式 
+
+`\(B_i dA_i = E_i dA_i + R_i \int_j B_j F_{ji} dA_j\)`
 
 假設平面上有 `\(N\)` 個三角形，每一次迭代至少需要 `\(O(N^2)\)`，如果判定兩點之間是否能傳遞需要 `\(O(\log N)\)`，則會落入 `\(O(N^2 \log N)\)`
+
+---
 
 ### Form-Factor Computation ###
 
@@ -184,6 +188,7 @@ for i from 0 to n
 * 只需要儲存葉節點代表的立方體中，所有可能相交的三角形編號
 * 移除掉中間產生的編號，讓每一次 access 的 cache-miss 下降
 
+
 然而，在 3D-DDA 中，我們需要反查找空間中一點 `\(p\)` 在哪一個葉節點中，藉由固定的長寬高切割長度，可以在 `\(O(1)\)` 時間內得知 `[i][j][k]` 各別的值。
 
 * 若限制大小，則建立 `[i][j][k]` 查找
@@ -194,8 +199,15 @@ for i from 0 to n
 
 ### Short Circuit Design ###
 
+判斷三角形與一個正交立方體是否相交，使用投影到二維空間中與一線段的交點是否皆存在。投影方法有 3 種 x-y, y-z, z-x，線段投影共有 2 種，共計 6 種情況。
+
+* 原先程式沒有做好短路設計，只要其中一種不符就應退出
+
+
+.left-column[
 ```cpp
-int CrossOver(TrianglePtr tri, Vector g0, Vector g1) {
+int CrossOver(TrianglePtr tri, 
+			Vector g0, Vector g1) {
 	for (xyz = 0; xyz < 3; xyz++) {
 		// front face project
 		// ...
@@ -209,10 +221,10 @@ int CrossOver(TrianglePtr tri, Vector g0, Vector g1) {
 	return true;
 }
 ```
+] .right-column[
+![](http://i.imgur.com/8jcycpG.png)
+]
 
-判斷三角形與一個正交立方體是否相交，使用投影到二維空間中與一線段的交點是否皆存在。投影方法有 3 種 x-y, y-z, z-x，線段投影共有 2 種，共計 6 種情況。
-
-* 原先程式沒有做好短路設計，只要其中一種不符就應退出
 
 ---
 
