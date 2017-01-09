@@ -27,7 +27,7 @@
       .remark-slide-content table thead { font-family: "Times New Roman"; }
       .remark-slide-content table th, .remark-slide-content table td, .remark-slide-content table tr  { padding: 1px 2px; border: 1px solid #696969; }
       .remark-slide-content table tbody { font-family: "Ubuntu Mono"; }
-      .remark-slide-content .big { font-size: 8em; }
+      .remark-slide-content .big { font-size: 3em; }
       .footnote {
         position: absolute;
         bottom: 3em;
@@ -258,7 +258,7 @@ int Clip(Vector p0, Vector p1, Vector g0, Vector g1, int x, int y) {
 
 ---
 
-### Strength Reduction for Float-point ###
+### Strength Reduction for Float-Point ###
 
 兩個外積結果相乘小於零，減少 instruction cycle 量，盡量用整數作為運算型態。
 
@@ -292,7 +292,12 @@ if (a != b)
 
 ### Strength Reduction for Ray Casting ###
 
+
+判斷 ray 是否能打到三角形 `\(A\)` 上，先用 bounding box 包住 `\(A\)`，計算 `\(p\)` 到 bounding box 的時間 `\(t\)`，若 `\(t\)` 大於目前的最小 `\(t_{\min}\)`，則退出。相反地，再計算更精準的 `\(t\)`。
+
+
 加入利用已知結果 `\(\vec{v} = p + t_{\text{min}} \cdot d, \;\; t_{\text{min}} > 0\)`
+
 
 ```c
 int TriangleHitted(Vector p, Vector d, TrianglePtr tp, float *t_min) {
@@ -503,32 +508,29 @@ float computeFormFactor(TrianglePtr srcTri, int logSrc, TrianglePtr desTri, int 
 
 ---
 
-### Result
-
-| Model           | Origin (sec.)        | Our Version (sec.) | Speedup |
-|:---------------:|---------------------:|-------------------:|--------:|
-| blocks.tri      |                      |                    |         |
-| room.tri        | 10.27                | 4.70               | 2.18    |
-| hall.tri        | 176.92               | 38.50              | 4.59    |
-| church.tri      | 72.32                | 42.64              | 1.69    |
-
----
 
 ### Comment
 
 * 使用洽當的編譯器參數可加速 2 倍
-* Strength Reduction for Form-Factor 章節講到的判斷提供 2 倍之快
+* 減少 Form-Factor 計算加速 2 倍
 * 剩餘優化部份改善 10% ~ 20% 效能。
 
-最後，我們加速了
+至今，我們加速了 .big[.center[4 倍]]
 
-.big[.center[ 4 x ]]
+### Experiment
+
+
+| Model           | Origin (sec.)        | Our v0.1 (sec.) | Speedup |
+|:---------------:|---------------------:|-------------------:|--------:|
+| room.tri        | 10.27                | 4.70               | 2.18    |
+| hall.tri        | 176.92               | 38.50              | 4.59    |
+| church.tri      | 72.32                | 42.64              | 1.69    |
+
 
 ---
 
 ### Snapshot - Blocks ###
 
-基礎版本 block.tri，消耗時間 9 秒
 
 .center[![Parallel 9 sec. blocks](http://i.imgur.com/SZYs2sq.png)]
 
@@ -536,7 +538,6 @@ float computeFormFactor(TrianglePtr srcTri, int logSrc, TrianglePtr desTri, int 
 
 ### Snapshot - Room ###
 
-基礎版本 room.tri，消耗時間 60 秒
 
 .center[![Parallel 60 sec. room](http://i.imgur.com/fv11dZu.png)]
 
@@ -544,7 +545,6 @@ float computeFormFactor(TrianglePtr srcTri, int logSrc, TrianglePtr desTri, int 
 
 ### Snapshot - Hall ###
 
-基礎版本 hall.tri，消耗時間 60 秒
 
 .center[![Parallel 60 sec. hall](http://i.imgur.com/k5D4wHn.png)]
 
@@ -552,7 +552,6 @@ float computeFormFactor(TrianglePtr srcTri, int logSrc, TrianglePtr desTri, int 
 
 ### Snapshot - Church ###
 
-基礎版本 church.tri，消耗時間 60 秒
 
 .center[![Parallel 60 sec. church](http://i.imgur.com/oZtcYqd.png)]
 
@@ -582,7 +581,7 @@ while (not converage) {
 
 為減少計算量，只算新增中心點 `\(P\)` 的 Form-Factor。對於下方的三角形 `\( B \)` 而言，分成兩種情況，已在這一輪完成計算，則重新計算 Form-Factor；反之，不做任何事。
 
-![Adaptive Triangle Splitting](http://i.imgur.com/qd2QlKk.png)
+.center[![Adaptive Triangle Splitting](http://i.imgur.com/qd2QlKk.png)]
 
 ---
 
@@ -590,7 +589,7 @@ while (not converage) {
 
 每一次挑選亮度前 `\(20\%\)` 三角形作為光源，將其他三角形嘗試與其進行熱輻射
 
-> 可以只選擇最亮的，這麼作只是早一點看到整個場景的光源
+> 可以只選擇最亮的，這麼做是為了提早看到近似最終結果的場景
 
 ```c
 while (not converage) {
@@ -604,17 +603,37 @@ while (not converage) {
 }
 ```
 
-> 但 ... 平行無法按照原本的切割方式自適應
+> 平行無法搭配自適應切割
 
 * Q: 為什麼按照中線切割無法自適應？  
-A: 因為鄰居不在同一個 thread 中，那麼在切割鄰居就無法傳遞正確的能量。
+  A: 因為鄰居不在同一個 thread 中，那麼在切割鄰居就無法傳遞正確的能量。
 
 ---
 
+### Compare room.tri  ###
+
+Processor `\(P = 6\)` on HP-z420 Server
+
+| Parallel           | Serial v0.1    |
+|:------------------:|:--------------:|
+| 18.89 sec.         | 27.64 sec.     |
+| .center[![](http://i.imgur.com/iVU7hKW.png)] | .center[![](http://i.imgur.com/nikXJI5.png)]|
+ 
+---
+
+### Compare hall.tri  ###
+
+Processor `\(P = 6\)` on HP-z420 Server
+
+| Parallel           | Serial v0.1    |
+|:------------------:|:--------------:|
+| 27.44 sec.         | 35.83 sec.     |
+| .center[![](http://i.imgur.com/8fHEPmy.png)] | .center[![](http://i.imgur.com/C7YmRQr.png)]|
+ 
+---
+
+
 ### Snapshot - Blocks ###
-
-平行版本 blocks.tri，消耗時間 4 秒
-
 
 .center[![Parallel 4 sec. blocks](http://i.imgur.com/jiMeTE9.png)]
 
@@ -624,8 +643,6 @@ A: 因為鄰居不在同一個 thread 中，那麼在切割鄰居就無法傳遞
 
 ### Snapshot - Room ###
 
-平行版本 room.tri，消耗時間 28 秒
-
 .center[![Parallel 28 sec. room](http://i.imgur.com/0pUng1j.png)]
 
 > 為了在 WebGL 上呈現，最多 30000 個三角形，否則很容易產生破圖。
@@ -633,8 +650,6 @@ A: 因為鄰居不在同一個 thread 中，那麼在切割鄰居就無法傳遞
 ---
 
 ### Snapshot - Hall ###
-
-平行版本 hall.tri，消耗時間 43 秒
 
 .center[![Parallel 43 sec. hall](http://i.imgur.com/3GnHkXJ.png)]
 
@@ -644,9 +659,9 @@ A: 因為鄰居不在同一個 thread 中，那麼在切割鄰居就無法傳遞
 
 ### Snapshot - Church view 1 ###
 
-平行版本 hall.tri，消耗時間 27 秒
-
 .center[![Parallel 27 sec. church](http://i.imgur.com/3Nkyg07.png)]
+
+> 為了在 WebGL 上呈現，最多 30000 個三角形，否則很容易產生破圖。
 
 ---
 
