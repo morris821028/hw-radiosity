@@ -359,6 +359,55 @@ int f(Arg p1p2) {
 
 ---
 
+### Remove Implications of Pointer Aliasing - Problem ###
+
+移除指標 Aliasing，意指可能會指向相同記憶體位址，導致每次計算都要重新載入，不能放進暫存器中。
+
+如下述的寫法，編譯器無法判定 `srcTri` 是否與 `desTri` 相同，在累加時則重新載入 `srcTri->deltaB[]` 的數值，計算上可能會產生數次的 cache miss，隨著迴圈次數不斷突然效能差異。
+
+```cpp
+void computeRadiosity(TrianglePtr srcTri, TrianglePtr desTri, float ff[3]) {
+	for (int v = 0; v < 3; v++) {	// vertex
+		for (int c = 0; c < 3; c++) {	// color RGB
+			flaot deltaB = desTri->Frgb[c]/255.0*RefRatio*srcTri->deltaB[c]*ff[v]/3;
+			desTri->deltaB[c] += deltaB; 
+			desTri->accB[v][c] += deltaB; 
+			desTri->deltaAccB[v][c] += deltaB; 
+		}
+	}
+}
+```
+
+> 解法請參考下一頁
+
+---
+
+### Remove Implications of Pointer Aliasing - Solution ###
+
+* __方法 1__: 加入 `if (srcTri != desTri)` 判斷，讓編譯器在 Function Pass 階段著手的 Dependency Analysis 更好
+* __方法 2__: 使用 Copy Optimization，同時把重複計算搬到 stack 上，或者使用 Polyhedal 表示法進行 Reordering Accesses for Loop Nest。這裡我們選擇前者，更容易引出 SSE。
+
+```cpp
+void computeRadiosity(TrianglePtr srcTri, TrianglePtr desTri, float ff[3]) {
+	const float k = RefRatio / 255.0;
+	float lo[3] = { desTri->Frgb[0]*k*(srctri->deltaB[0]), 
+					desTri->Frgb[1]*k*(srctri->deltaB[1]), 
+					desTri->Frgb[2]*k*(srctri->deltaB[2])};
+	for (int v = 0; v < 3; v++)	{	// vertex
+		for (int c = 0; c < 3; c++) {	// color RGB
+			/* calculate the reflectiveness */
+			float deltaB = lo[c] * ff[v] / 3;
+			desTri->deltaB[c] += deltaB;
+			desTri->accB[v][c] += deltaB;
+			desTri->deltaaccB[v][c] = deltaB;
+		}
+	}
+}
+```
+
+
+---
+
 ### Copy Optimization ###
 
 我們可以考慮使用 Copy 的方式放入較近的 stack 上，而非傳遞指標
