@@ -31,6 +31,7 @@ namespace {
 	int CompressResult = 0;
 	bool InteractiveOutput = false;
 	int ParallelJobs = 2;
+	int ParallelSource = 1;
 }
 
 Triangle TriStore[MaxTri];
@@ -230,11 +231,10 @@ void init(FILE * fp)
 void InitRad(void)
 {
 	float minarea = 100000000.0, maxarea = 0.0;
-	TrianglePtr tp, tn;
 
 	for (int i = 0; i < trinum; i++)
 	{
-		tp = &TriStore[i];
+		TrianglePtr tp = &TriStore[i];
 		/**************************************************
 		  SampleArea = smallest area int this environment.
 		 **************************************************/
@@ -266,60 +266,47 @@ void InitRad(void)
 		/**********************************************************
 		  Initialize neighbor triangle.
 		 **********************************************************/
-		for (int j = 0; j < trinum; j++)
-		{
+		#pragma omp parallel for
+		for (int j = 0; j < trinum; j++) {
 			if (j == i)
 				continue;
-			tn = &TriStore[j];
+			TrianglePtr tn = &TriStore[j];
 
-
-			for (int v = 0; v < 3; v++)
-			{
-				for (int n = 0; n < 3; n++)
-				{
-					if ((tp->p[v][0] == tn->p[n][0]) &&
-							(tp->p[v][1] == tn->p[n][1]) &&
-							(tp->p[v][2] == tn->p[n][2]))
+			for (int v = 0; v < 3; v++) {
+				for (int n = 0; n < 3; n++) {
+					if (tp->p[v][0] == tn->p[n][0] &&
+						tp->p[v][1] == tn->p[n][1] &&
+						tp->p[v][2] == tn->p[n][2])
 					{
-						if ((tp->p[(v + 1) % 3][0] == tn->p[(n + 1) % 3][0]) &&
-								(tp->p[(v + 1) % 3][1] == tn->p[(n + 1) % 3][1]) &&
-								(tp->p[(v + 1) % 3][2] == tn->p[(n + 1) % 3][2]))
+						// same direction
+						if (tp->p[(v + 1) % 3][0] == tn->p[(n + 1) % 3][0] &&
+							tp->p[(v + 1) % 3][1] == tn->p[(n + 1) % 3][1] &&
+							tp->p[(v + 1) % 3][2] == tn->p[(n + 1) % 3][2])
 						{
-							/*
-							 * neighbor is a
-							 * "continuous" patch
-							 */
-							if (CosTheta(tp->n, tn->n) > 0.85)
-							{
-								/*
-								 * same
-								 * direction
-								 */
+							// neighbor is a "continuous" patch
+							if (CosTheta(tp->n, tn->n) > 0.85) {
+								 // same direction
 								tp->neighbor[v] = j;
 								tn->neighbor[n] = i;
 							}
 						}
-						/* oppsite direction */
-						else if ((tp->p[(v + 1) % 3][0] == tn->p[(n + 2) % 3][0]) &&
-								(tp->p[(v + 1) % 3][1] == tn->p[(n + 2) % 3][1]) &&
-								(tp->p[(v + 1) % 3][2] == tn->p[(n + 2) % 3][2]))
+						// opposite direction
+						else if (tp->p[(v + 1) % 3][0] == tn->p[(n + 2) % 3][0] &&
+								 tp->p[(v + 1) % 3][1] == tn->p[(n + 2) % 3][1] &&
+								 tp->p[(v + 1) % 3][2] == tn->p[(n + 2) % 3][2])
 						{
-							/*
-							 * neighbor is a
-							 * "continuous" patch
-							 */
+							// neighbor is a "continuous" patch
 							if (CosTheta(tp->n, tn->n) > 0.85)
 							{
 								tp->neighbor[v] = j;
 								tn->neighbor[(n + 2) % 3] = i;
 							}
-						}	  /* end of else if */
+						}
 					}
-				}		  /* end of for (n.. ) */
-			}		  /* end of for (v.. ) */
-		}			  /* end of for (j.. ) */
-
-	}				  /* end of for (i.. ) */
+				}
+			}	
+		}
+	}
 
 	if (SampleArea < 0.0)
 		SampleArea = maxarea / 100.0;
@@ -337,6 +324,7 @@ void InitRad(void)
 	printf("       -interactive    %d\n", InteractiveOutput);
 #ifdef PARALLEL
 	printf("       -jobs           %d\n", ParallelJobs);
+	printf("       -parallel_src   %d\n", ParallelSource);
 #endif
 	printf("[" KGRN "INFO" KWHT "] Complete initialization\n");
 }
@@ -383,7 +371,7 @@ vector<int> listCanditate()
 	}
 	sort(C.begin(), C.end());
 	vector<int> ret;
-	size_t n = min(((int) C.size()+4)/5, 10);
+	size_t n = min(((int) C.size()+4)/5, ParallelSource);
 	for (size_t i = 0, j = C.size()-1; i < n; i++, j--)
 		ret.push_back(C[j].second);
 	return ret;
@@ -507,7 +495,7 @@ void DoRadiosity(const char fileName[])
 char* ProcessOption(int argc, char *argv[], FILE* &fin)
 {
 	const char option[][16] = {"-debug", "-adapt_area", "-sample_area", "-converge", "-delta_ff", 
-				"-write_cycle", "-zip", "-triangle", "-light", "-o", "-interactive", "-jobs"};
+				"-write_cycle", "-zip", "-triangle", "-light", "-o", "-interactive", "-jobs", "-parallel_src"};
 	const int MAX_OPTION = sizeof(option) / sizeof(option[0]);
 	if (argc < 3) {
 		fprintf(stderr, "Usage: %s [options] input_file -o output_file\n", argv[0]);
@@ -515,6 +503,7 @@ char* ProcessOption(int argc, char *argv[], FILE* &fin)
 		fprintf(stderr, "   Debug Options\n");
 		fprintf(stderr, "       -debug <integer>        Output intermediate result according debug level.\n");
 		fprintf(stderr, "                               " KMAG "Default -debug %d\n\n" KWHT, Debug);
+
 		fprintf(stderr, "   Radiosity Options\n");
 		fprintf(stderr, "       -adapt_area <float>     The threahold of adaptive splitting algorithm.\n");
 		fprintf(stderr, "                               " KMAG "Default -area %f\n" KWHT, AreaLimit);
@@ -535,6 +524,8 @@ char* ProcessOption(int argc, char *argv[], FILE* &fin)
 		fprintf(stderr, "                               " KMAG "Defulat -light %f\n" KWHT, LightScale);
 		fprintf(stderr, "       -jobs <integer>         Multithreading OpenMP omp_set_num_threads\n");
 		fprintf(stderr, "                               " KMAG "Defulat -jobs %d\n" KWHT, ParallelJobs);
+		fprintf(stderr, "       -parallel_src <integer> The number of light which illuminate other triangles each step\n");
+		fprintf(stderr, "                               " KMAG "Defulat -parallel_src %d\n" KWHT, ParallelSource);
 
 		fprintf(stderr, "   Output Options\n");
 		fprintf(stderr, "       -zip                    Compress output file by zip.\n");
@@ -592,6 +583,9 @@ char* ProcessOption(int argc, char *argv[], FILE* &fin)
 				case 11:
 					assert(sscanf(argv[++i], "%d", &ParallelJobs) == 1 && "Parallel Jobs Error");
 					omp_set_num_threads(ParallelJobs);
+					break;
+				case 12:
+					assert(sscanf(argv[++i], "%d", &ParallelSource) == 1 && "Parallel Source Error");
 					break;
 				default:
 					fprintf(stderr, "Invaild Option : %s", argv[i]);
