@@ -59,5 +59,4 @@ extern float	AreaLimit;
 extern float	SampleArea;
 extern float	ConvergeLimit;
 extern float	DeltaFFLimit;
-extern float	LightScale;
 extern int	TriangleLimit;

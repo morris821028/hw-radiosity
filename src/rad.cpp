@@ -23,11 +23,16 @@ float AreaLimit = 5.0;
 float SampleArea = -1.0;	       /* model dependent or user-defined */
 float ConvergeLimit = 1200.0;
 float DeltaFFLimit = 0.000005;
-float LightScale = 1.0;
 int TriangleLimit = 1000000;
-int WriteIteration = 10;
-int CompressResult = 0;
-bool InteractiveOutput = false;
+
+namespace {
+	float LightScale = 1.0;
+	int WriteIteration = 10;
+	int CompressResult = 0;
+	bool InteractiveOutput = false;
+	int ParallelJobs = 2;
+}
+
 Triangle TriStore[MaxTri];
 int TriStorePtr;
 
@@ -196,12 +201,11 @@ void PrintOut(const char *fname, int loop)
 	}
 	if (InteractiveOutput)
 	{
-		char cmd[128] = "cd ./demo && ./run.sh ../";
+		char cmd[128] = "cd ./WebGL_demo && ./run.sh ../";
 		strcat(cmd, fn);
-		if (system(cmd))
-			puts("OK");
-		else
-			puts("Failed");
+		strcat(cmd, " 2>/dev/null");
+		int ret = system(cmd);
+		fprintf(stderr, "WebGL: %s, return %d\n", cmd, ret);
 	}
 }
 
@@ -234,20 +238,16 @@ void InitRad(void)
 		/**************************************************
 		  SampleArea = smallest area int this environment.
 		 **************************************************/
-		if (minarea > tp->area)
-			minarea = tp->area;
-		if (maxarea < tp->area)
-			maxarea = tp->area;
+		minarea = min(minarea, tp->area);
+		maxarea = max(maxarea, tp->area);
 
 		/**********************************************************
 		  light source.
 		 **********************************************************/
-		if (isLightSource(tp))
-		{
+		if (isLightSource(tp)) {
 			InitVector(tp->deltaB, 0.0, 0.0, 0.0);
 			float scale = LightScale;
-			for (int v = 0; v < 3; v++)
-			{
+			for (int v = 0; v < 3; v++) {
 				tp->accB[v][0] = tp->Brgb[0] * scale;
 				tp->accB[v][1] = tp->Brgb[1] * scale;
 				tp->accB[v][2] = tp->Brgb[2] * scale;
@@ -257,8 +257,7 @@ void InitRad(void)
 				tp->deltaB[2] += 100 * tp->accB[v][2] / 3;
 			}
 		}
-		else
-		{
+		else {
 			for (int v = 0; v < 3; v++)
 				InitVector(tp->accB[v], 0.0, 0.0, 0.0);
 			CopyVector(tp->accB[0], tp->deltaB);
@@ -324,18 +323,21 @@ void InitRad(void)
 
 	if (SampleArea < 0.0)
 		SampleArea = maxarea / 100.0;
+	printf("[" KGRN "INFO" KWHT "] Max Patch Area = " KMAG "%f\n" KWHT, maxarea);
+	printf("[" KGRN "INFO" KWHT "] Min Patch Area = " KMAG "%f\n" KWHT, minarea);
 	printf("[" KGRN "INFO" KWHT "] Config Table\n");
-	printf("       MaxPatchArea    %f\n", maxarea);
-	printf("       MinPatchArea    %f\n", minarea);
-	printf("       Debuglevel      %i\n", Debug);
-	printf("       AreaLimit       %f\n", AreaLimit);
-	printf("       SampleArea      %f\n", SampleArea);
-	printf("       ConvergeLimit   %f\n", ConvergeLimit);
-	printf("       DeltaFFLimit    %f\n", DeltaFFLimit);
-	printf("       WriteIteration  %d\n", WriteIteration);
-	printf("       TriangleLimit   %d\n", TriangleLimit);
-	printf("       LightScale      %f\n", LightScale);
-	printf("       Interactive     %d\n", InteractiveOutput);
+	printf("       -debug          %i\n", Debug);
+	printf("       -adapt_area     %f\n", AreaLimit);
+	printf("       -sample_area    %f\n", SampleArea);
+	printf("       -converge       %f\n", ConvergeLimit);
+	printf("       -delta_ff       %f\n", DeltaFFLimit);
+	printf("       -write_cycle    %d\n", WriteIteration);
+	printf("       -triangle       %d\n", TriangleLimit);
+	printf("       -light          %f\n", LightScale);
+	printf("       -interactive    %d\n", InteractiveOutput);
+#ifdef PARALLEL
+	printf("       -jobs           %d\n", ParallelJobs);
+#endif
 	printf("[" KGRN "INFO" KWHT "] Complete initialization\n");
 }
 
@@ -354,7 +356,6 @@ int MaxDeltaRad(void)
 			 **********************************************************/
 
 			float delta = tp->deltaB[0] + tp->deltaB[1] + tp->deltaB[2];
-			// float dE = delta * tp->area;
 			if (delta > maxDelta && delta > ConvergeLimit) {
 				maxIdx = i;
 				maxDelta = delta;
@@ -364,7 +365,6 @@ int MaxDeltaRad(void)
 		if (Debug) {
 			printf("------------------------\n");
 			printf("MaxDeltaRad--maxDelta = %f\n", maxDelta);
-			//			printf("MaxDeltaRad--maxArea  = %f\n", maxArea);
 		}
 #endif
 	}
@@ -383,7 +383,7 @@ vector<int> listCanditate()
 	}
 	sort(C.begin(), C.end());
 	vector<int> ret;
-	size_t n = min(((int) C.size()+4)/5, 100);
+	size_t n = min(((int) C.size()+4)/5, 10);
 	for (size_t i = 0, j = C.size()-1; i < n; i++, j--)
 		ret.push_back(C[j].second);
 	return ret;
@@ -507,7 +507,7 @@ void DoRadiosity(const char fileName[])
 char* ProcessOption(int argc, char *argv[], FILE* &fin)
 {
 	const char option[][16] = {"-debug", "-adapt_area", "-sample_area", "-converge", "-delta_ff", 
-				"-write_cycle", "-zip", "-triangle", "-light", "-o", "-interactive"};
+				"-write_cycle", "-zip", "-triangle", "-light", "-o", "-interactive", "-jobs"};
 	const int MAX_OPTION = sizeof(option) / sizeof(option[0]);
 	if (argc < 3) {
 		fprintf(stderr, "Usage: %s [options] input_file -o output_file\n", argv[0]);
@@ -533,6 +533,9 @@ char* ProcessOption(int argc, char *argv[], FILE* &fin)
 		fprintf(stderr, "                               " KMAG "Defulat -triangle %d\n" KWHT, TriangleLimit);
 		fprintf(stderr, "       -light <float>          Adjust the scale of bright light for testing.\n");
 		fprintf(stderr, "                               " KMAG "Defulat -light %f\n" KWHT, LightScale);
+		fprintf(stderr, "       -jobs <integer>         Multithreading OpenMP omp_set_num_threads\n");
+		fprintf(stderr, "                               " KMAG "Defulat -jobs %d\n" KWHT, ParallelJobs);
+
 		fprintf(stderr, "   Output Options\n");
 		fprintf(stderr, "       -zip                    Compress output file by zip.\n");
 		fprintf(stderr, "                               " KMAG "Defulat false\n" KWHT);
@@ -586,6 +589,10 @@ char* ProcessOption(int argc, char *argv[], FILE* &fin)
 				case 10:
 					InteractiveOutput = true;
 					break;
+				case 11:
+					assert(sscanf(argv[++i], "%d", &ParallelJobs) == 1 && "Parallel Jobs Error");
+					omp_set_num_threads(ParallelJobs);
+					break;
 				default:
 					fprintf(stderr, "Invaild Option : %s", argv[i]);
 					exit(1);
@@ -594,7 +601,7 @@ char* ProcessOption(int argc, char *argv[], FILE* &fin)
 		if (!has)
 			ifileName = argv[i];
 	}
-	fprintf(stderr, "*--------------- %s\n", ofileName);
+	fprintf(stderr, "[" KGRN "INFO" KWHT "] Input Model " KMAG "%s" KWHT " and Output Prefix " KMAG "%s\n" KWHT, ifileName, ofileName);
 	fin = fopen(ifileName, "r");
 	return ofileName;
 }
@@ -603,8 +610,7 @@ char* ProcessOption(int argc, char *argv[], FILE* &fin)
 
 int main(int argc, char *argv[])
 {
-	const int P = 20;
-	omp_set_num_threads(P);
+	omp_set_num_threads(ParallelJobs);
 	FILE *fin;
 	const char *foutName = ProcessOption(argc, argv, fin);
 	
@@ -625,7 +631,7 @@ int main(int argc, char *argv[])
 		double stTime = omp_get_wtime();
 		DoRadiosity(foutName);
 		double edTime = omp_get_wtime();
-		fprintf(stderr, "[" KGRN "INFO" KWHT "] Init took " KMAG "%f" KWHT " sec. time.\n", edTime - stTime);
+		fprintf(stderr, "[" KGRN "INFO" KWHT "] Radiosity Method took " KMAG "%f" KWHT " sec. time.\n", edTime - stTime);
 	}
 	return 0;
 }

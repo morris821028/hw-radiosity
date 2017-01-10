@@ -206,20 +206,101 @@ static void PartitionDestination(TrianglePtr s, TrianglePtr t1, TrianglePtr t2, 
 	t1->parent = t2->parent = s->parent;
 }
 
+static void PartitionDestination(TrianglePtr s, TrianglePtr t1, TrianglePtr t2, TrianglePtr t3,
+								int t1ID, int t2ID, int t3ID)
+{
+	*t1  = *s;
+	*t2  = *s;
+	*t3  = *s;
+	// 
+	Vector v0, v1;
+	CopyVector(s->c, t1->p[0]);
+	CopyVector(s->accB[0], t1->accB[0]);
+	CalCenter(t1);
+	CalArea(t1, v0, v1);
+
+	CopyVector(s->c, t2->p[1]);
+	CopyVector(s->accB[1], t2->accB[1]);
+	CalCenter(t2);
+	CalArea(t2, v0, v1);
+
+	CopyVector(s->c, t3->p[2]);
+	CopyVector(s->accB[2], t3->accB[2]);
+	CalCenter(t3);
+	CalArea(t3, v0, v1);
+	
+	t1->neighbor[0] = t3ID, t1->neighbor[2] = t2ID;
+	t2->neighbor[1] = t1ID, t2->neighbor[0] = t3ID;
+	t3->neighbor[2] = t2ID, t3->neighbor[1] = t1ID;
+	
+	t1->parent = t2->parent = t3->parent = s->parent;
+}
+
 
 static inline void CalRadiosity(TrianglePtr srctri, TrianglePtr destri, float ff[3])
 {
 	const float k = RefRatio / 255.0;
-	float lo[3] = {destri->Frgb[0]*k*(srctri->deltaB[0]), destri->Frgb[1]*k*(srctri->deltaB[1]), destri->Frgb[2]*k*(srctri->deltaB[2])};
+	float lo[3] = {	destri->Frgb[0]*k*(srctri->deltaB[0])/3, 
+					destri->Frgb[1]*k*(srctri->deltaB[1])/3, 
+					destri->Frgb[2]*k*(srctri->deltaB[2])/3};
 	for (int v = 0; v < 3; v++)	{ // for each vertex
 		for (int c = 0; c < 3; c++) { // for each color: RGB
 			/* calculate the reflectiveness */
-			float deltaB = lo[c] * ff[v] / 3;
+			float deltaB = lo[c] * ff[v];
 			destri->deltaB[c] += deltaB;
 			destri->accB[v][c] += deltaB;
 			destri->deltaaccB[v][c] = deltaB;
 		}
 	}
+}
+
+inline int PartitionTriangleWithCenterAndStore(TrianglePtr srcTri, int realSrc, TrianglePtr &t1, TrianglePtr &t2, TrianglePtr &t3) {
+	if (trinum+10 >= MaxTri || trinum+10 >= TriangleLimit || srcTri->area < 1e-8)
+		return -1;
+	{
+		float maxLen = 0.0, minLen = 1e+30;
+		for (int v = 0; v < 3; v++) {
+			Vector l;
+			VectorTo(srcTri->p[v], srcTri->p[(v+1) % 3], l);
+			float length = norm2(l);
+			if (maxLen < length)
+				maxLen = length;
+			if (minLen > length)
+				minLen = length;
+		}
+		if (minLen/maxLen < 1e-1 || minLen < 1)
+			return -1;
+	}
+	/*****************************************************
+	  using center to split -> create acute triangle
+	 ******************************************************/
+	int t1ID = AllocTriangle();
+	int t2ID = AllocTriangle();
+	int t3ID = AllocTriangle();
+	t1 = &TriStore[t1ID];
+	t2 = &TriStore[t2ID];
+	t3 = &TriStore[t3ID];
+	int replaceFlag = 0;	
+
+	PartitionDestination(srcTri, t1, t2, t3, t1ID, t2ID, t3ID);
+
+
+	/*****************************************************
+	  set the relationship of srcTri, t1 and t2 triangle
+	 ******************************************************/
+	if (srcTri->parent == realSrc)	{
+		// this triangle is a initial triangle, and set to logical triangle
+		srcTri->parent = -1;
+	} else {
+		// replace srcTri with t2
+		*srcTri = TriStore[t3ID];
+		t3 = srcTri;
+		t3ID = realSrc;
+		FreeTriangle();
+		replaceFlag = 1;
+	}
+
+	return replaceFlag;
 }
 
 /**
@@ -418,6 +499,24 @@ int Shade(TrianglePtr srctri, int logsrc, TrianglePtr destri, int logdest, int r
 	int replaceFlag = 0, destedge;
 	bool reshadeNeighbor;
 	TrianglePtr t1, t2, t3, t4;
+#ifdef PARALLEL
+	// independent splitting method
+	replaceFlag = PartitionTriangleWithCenterAndStore(destri, realdest, t1, t2, t3);
+	if (replaceFlag == 1) {
+		float ff2[3];
+#ifdef ADAPT
+		ff2[2] = AdaptCalFF(CalFF(srctri, logsrc, t3, logdest, t3->p[2]), srctri,
+				logsrc, t3, logdest, t3->p[2]);
+#else
+		ff2[2] = CalFF(srctri, logsrc, t3, logdest, t3->p[2]);
+#endif
+		ff2[0] = ff[0];
+		ff2[1] = ff[1];
+		CalRadiosity(srctri, t3, ff2);
+	}
+	return replaceFlag; 
+#endif
+
 	replaceFlag = PartitionTriangleAndStore(destri, realdest, destedge, t1, t2, t3, t4, reshadeNeighbor);
 	if (replaceFlag < 0) {
 		CalRadiosity(srctri, destri, ff);
@@ -454,22 +553,23 @@ int Shade(TrianglePtr srctri, int logsrc, TrianglePtr destri, int logdest, int r
 void PrePartitionTriangles()
 {
 	float threadhold = 100;
-    for (int it = 0; it < 100; it++) {
-        int has = 0;
-        for (int i = 0; i < trinum; i++) {
-            TrianglePtr tp = &TriStore[i];
-            if (tp->area < threadhold || isLightSource(tp))
-                continue;
-            has = 1;
-            int destedge;
-            bool reshadeNeighbor;
-            TrianglePtr t1, t2, t3, t4;
-            PartitionTriangleAndStore(tp, i, destedge, t1, t2, t3, t4, reshadeNeighbor);
-        }
-        if (!has) {
+	for (int it = 0; it < 100; it++) {
+		int has = 0;
+		for (int i = 0; i < trinum; i++) {
+			TrianglePtr tp = &TriStore[i];
+			if (tp->area < threadhold || isLightSource(tp))
+				continue;
+			has = 1;
+			int destedge;
+			bool reshadeNeighbor;
+			TrianglePtr t1, t2, t3, t4;
+			PartitionTriangleAndStore(tp, i, destedge, t1, t2, t3, t4, reshadeNeighbor);
+//			PartitionTriangleWithCenterAndStore(tp, i, t1, t2, t3);
+		}
+		if (!has) {
 			threadhold = max(threadhold/2, 10.f);
 		}
-    }
-    fprintf(stderr, "[" KRED "DEBUG" KWHT "] After MoreTriangle %d\n", trinum);
+	}
+	fprintf(stderr, "[" KRED "DEBUG" KWHT "] After MoreTriangle %d\n", trinum);
 }
 

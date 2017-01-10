@@ -3,8 +3,9 @@
 #
 
 CXX=g++
-CFLAG=-O2 -fopenmp -std=c++11 -pg -g3 -msse -Wall -Iinclude -D_DEBUG
-#CFLAG=-O2 -fopenmp -std=c++11 -msse -Wall -Iinclude
+#CFLAG=-O2 -fopenmp -std=c++11 -pg -g3 -msse -Wall -Iinclude -D_DEBUG
+#CFLAG=-O2 -fopenmp -march=native -std=c++11 -msse -Wall -Iinclude
+CFLAG=-O2 -fopenmp -std=c++11 -msse -Wall -Iinclude
 
 OBJECTS=shade.o raycast.o
 HEADERS=./include/rad.h ./include/raycast.h ./include/shade.h ./include/vector.h ./include/config.h
