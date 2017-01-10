@@ -38,6 +38,7 @@ static void SetNeighborToMe(int neighborID, int oldtriID, int newtriID)
 	for (int v = 0; v < 3; v++) {
 		if (neitri->neighbor[v] == oldtriID) {
 			neitri->neighbor[v] = newtriID;
+			return ;
 		}
 	}
 }
@@ -108,8 +109,17 @@ static float CalFF(TrianglePtr srctri, int logsrc, TrianglePtr destri, int logde
 {
 	Vector dir;
 	VectorTo(p, srctri->c, dir);
+/*
 	float ctheta1 = CosTheta(dir, srctri->n);
 	float ctheta2 = -CosTheta(dir, destri->n);
+*/
+	float dotSrc = InnerProd(dir, srctri->n);
+	float dotDes = -InnerProd(dir, destri->n);
+	if ((dotSrc < 0) != (dotDes < 0))
+		return 0.0;
+	float dirLen = norm(dir), srcLen = norm(srctri->n), desLen = norm(destri->n);
+	float ctheta1 = dotSrc / dirLen / srcLen;
+	float ctheta2 = dotDes / dirLen / desLen;
 	float ff = ctheta1 * ctheta2;
 	if (ff <= 0.0)
 		return 0.0;
@@ -142,7 +152,7 @@ float AdaptCalFF(float ff, TrianglePtr srctri, int logsrc, TrianglePtr destri, i
 		for (int v = 0; v < 3; v++) {
 			Vector l;
 			VectorTo(srctri->p[v], srctri->p[(v + 1) % 3], l);
-			float length = l[0] * l[0] + l[1] * l[1] + l[2] * l[2];
+			float length = norm2(l);
 			if (maxlength < length) {
 				maxlength = length, edge = v;
 			}
