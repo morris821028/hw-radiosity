@@ -612,13 +612,23 @@ A: 因為鄰居不在同一個 thread 中，那麼在切割鄰居就無法傳遞
 
 ---
 
-### Splitting Triangle in Parallel
+### Splitting Triangle in Parallel - Center
 
 為了解決鄰居在不同 thread 的問題，可以使用三角形的重心進行切割，可以解決 Dependency 的問題。
 
 .center[![](http://i.imgur.com/cI7z6Jx.png)]
 
-> 這部份尚未完成，預期可以解決平行上的困難，並達到不錯的效果。
+---
+
+### Prepartition with Splitting
+
+一開始就根據重心切好三角形，之後不進行自適應。下圖皆以過程中最多產生 30000 個三角形為限制。
+
+| Longest Edge | Center      |
+|:------------:|:-----------:|
+| .center[![](http://i.imgur.com/0pUng1j.png)] | .center[![](http://i.imgur.com/ZyLbimO.png)] |
+
+明顯地，根據重心的切割方法容易產生鈍角三角形，看起來就會像很多紡錘體。
 
 ---
 
