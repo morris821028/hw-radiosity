@@ -215,11 +215,6 @@ void PrintOut(const char *fname, int loop)
 				z(buffer);
 				fputs(buffer, fout), fputs(" ", fout);
 			}
-			{
-				fp::tostring<float> z(tp->p[j][1]);
-				z(buffer);
-				fputs(buffer, fout), fputs(" ", fout);
-			}
 			fputs(norm_str, fout);
 		}
 #endif
