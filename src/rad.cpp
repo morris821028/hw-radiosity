@@ -13,6 +13,7 @@
 #include "shade.h"
 #include "vector.h"
 #include "config.h"
+#include "float2string.h"
 #include <omp.h>
 #include <algorithm>
 #include <set>
@@ -171,20 +172,70 @@ void PrintOut(const char *fname, int loop)
 				tp->p[2][0], tp->p[2][1], tp->p[2][2]);
 		fprintf(fout, "%i %i %i 0 0 0 \n", (int)tp->accB[2][0], (int)tp->accB[2][1], (int)tp->accB[2][2]);
 #else
+		// Triangle
+		// frontcolor_r frontcolor_g frontcolor_b backcolor_r backcolor_g backcolor_b
+		// vertex1_x vertex1_y vertex1_z normal1_x normal1_y normal1_z
+		// vertex2_x vertex2_y vertex2_z normal2_x normal2_y normal2_z
+		// vertex3_x vertex3_y vertex3_z normal3_x normal3_y normal3_z
 
-		fprintf(fout, "Triangle \n");
-		float frontColor[3] = {};
+		fputs("Triangle \n", fout);
+		int frontColor[3] = {};
 		for (int j = 0; j < 3; j++) {
+			float f = 0;
 			for (int k = 0; k < 3; k++)
-				frontColor[j] += tp->accB[k][j];
-			frontColor[j] /= 3;
-			frontColor[j] = max(min(frontColor[j], 255.0f), 0.0f);
-			if (isnan(frontColor[j]))
-				frontColor[j] = 0;
+				f += tp->accB[k][j];
+			f /= 3;
+			f = max(min(f, 255.0f), 0.0f);
+			if (isnan(f))
+				f = 0;
+			frontColor[j] = f;
 		}
-		fprintf(fout, "%.0f %.0f %.0f %.0f %.0f %0.f\n", frontColor[0], frontColor[1], frontColor[2], 0.0, 0.0, 0.0);
+		static char buffer[fp::tostring<float>::min_buffer_size+10];
+		fprintf(fout, "%d %d %d 0 0 0\n", frontColor[0], frontColor[1], frontColor[2]);
+		static char norm_str[128] = {};
+		memset(norm_str, 0, sizeof(norm_str));
+		{
+			fp::tostring<float> z(tp->n[0]);
+			z(buffer);
+			strcat(norm_str, buffer);
+			strcat(norm_str, " ");
+		}
+		{
+			fp::tostring<float> z(tp->n[1]);
+			z(buffer);
+			strcat(norm_str, buffer);
+			strcat(norm_str, " ");
+		}
+		{
+			fp::tostring<float> z(tp->n[2]);
+			z(buffer);
+			strcat(norm_str, buffer);
+			strcat(norm_str, "\n");
+		}
+
+
 		for (int j = 0; j < 3; j++) {
-			fprintf(fout, "%f %f %f %f %f %f\n", tp->p[j][0], tp->p[j][1], tp->p[j][2], tp->n[0], tp->n[1], tp->n[2]);
+			{
+				fp::tostring<float> z(tp->p[j][0]);
+				z(buffer);
+				fputs(buffer, fout), fputs(" ", fout);
+			}
+			{
+				fp::tostring<float> z(tp->p[j][1]);
+				z(buffer);
+				fputs(buffer, fout), fputs(" ", fout);
+			}
+			{
+				fp::tostring<float> z(tp->p[j][2]);
+				z(buffer);
+				fputs(buffer, fout), fputs(" ", fout);
+			}
+			{
+				fp::tostring<float> z(tp->p[j][1]);
+				z(buffer);
+				fputs(buffer, fout), fputs(" ", fout);
+			}
+			fputs(norm_str, fout);
 		}
 #endif
 	}
@@ -266,7 +317,7 @@ void InitRad(void)
 		/**********************************************************
 		  Initialize neighbor triangle.
 		 **********************************************************/
-		#pragma omp parallel for
+#pragma omp parallel for
 		for (int j = 0; j < trinum; j++) {
 			if (j == i)
 				continue;
@@ -275,25 +326,25 @@ void InitRad(void)
 			for (int v = 0; v < 3; v++) {
 				for (int n = 0; n < 3; n++) {
 					if (tp->p[v][0] == tn->p[n][0] &&
-						tp->p[v][1] == tn->p[n][1] &&
-						tp->p[v][2] == tn->p[n][2])
+							tp->p[v][1] == tn->p[n][1] &&
+							tp->p[v][2] == tn->p[n][2])
 					{
 						// same direction
 						if (tp->p[(v + 1) % 3][0] == tn->p[(n + 1) % 3][0] &&
-							tp->p[(v + 1) % 3][1] == tn->p[(n + 1) % 3][1] &&
-							tp->p[(v + 1) % 3][2] == tn->p[(n + 1) % 3][2])
+								tp->p[(v + 1) % 3][1] == tn->p[(n + 1) % 3][1] &&
+								tp->p[(v + 1) % 3][2] == tn->p[(n + 1) % 3][2])
 						{
 							// neighbor is a "continuous" patch
 							if (CosTheta(tp->n, tn->n) > 0.85) {
-								 // same direction
+								// same direction
 								tp->neighbor[v] = j;
 								tn->neighbor[n] = i;
 							}
 						}
 						// opposite direction
 						else if (tp->p[(v + 1) % 3][0] == tn->p[(n + 2) % 3][0] &&
-								 tp->p[(v + 1) % 3][1] == tn->p[(n + 2) % 3][1] &&
-								 tp->p[(v + 1) % 3][2] == tn->p[(n + 2) % 3][2])
+								tp->p[(v + 1) % 3][1] == tn->p[(n + 2) % 3][1] &&
+								tp->p[(v + 1) % 3][2] == tn->p[(n + 2) % 3][2])
 						{
 							// neighbor is a "continuous" patch
 							if (CosTheta(tp->n, tn->n) > 0.85)
@@ -487,7 +538,12 @@ void DoRadiosity(const char fileName[])
 		}
 		fprintf(stderr, "[" KGRN "INFO" KWHT "] Complete in #Iterations %d\n", loop);
 	}
-	PrintOut(fileName, 0);
+	{
+		double stTime = omp_get_wtime();
+		PrintOut(fileName, 0);
+		double edTime = omp_get_wtime();
+		fprintf(stderr, "[" KGRN "INFO" KWHT "] Store file took " KMAG "%f" KWHT " sec. time.\n", edTime - stTime);
+	}
 }
 
 
@@ -495,7 +551,7 @@ void DoRadiosity(const char fileName[])
 char* ProcessOption(int argc, char *argv[], FILE* &fin)
 {
 	const char option[][16] = {"-debug", "-adapt_area", "-sample_area", "-converge", "-delta_ff", 
-				"-write_cycle", "-zip", "-triangle", "-light", "-o", "-interactive", "-jobs", "-parallel_src"};
+		"-write_cycle", "-zip", "-triangle", "-light", "-o", "-interactive", "-jobs", "-parallel_src"};
 	const int MAX_OPTION = sizeof(option) / sizeof(option[0]);
 	if (argc < 3) {
 		fprintf(stderr, "Usage: %s [options] input_file -o output_file\n", argv[0]);
@@ -607,7 +663,7 @@ int main(int argc, char *argv[])
 	omp_set_num_threads(ParallelJobs);
 	FILE *fin;
 	const char *foutName = ProcessOption(argc, argv, fin);
-	
+
 	if (fin == NULL) {
 		fprintf(stderr, "File open error::%s\n", argv[2]);
 		exit(1);
