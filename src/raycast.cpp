@@ -1,10 +1,9 @@
+#include <bits/stdc++.h>
+
 #include "rad.h"
 #include "raycast.h"
-#include <stdio.h>
-#include <stdlib.h>
-#include <bits/stdc++.h>
-#include <unordered_set>
-#include <unordered_map>
+#include "config.h"
+
 using namespace std;
 
 static int             TriListStore[MaxTriList];

@@ -1,17 +1,12 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <algorithm>
-#include <omp.h>
-using namespace std;
+#include <bits/stdc++.h>
+
 #include "rad.h"
 #include "raycast.h"
 #include "shade.h"
 #include "config.h"
+
+using namespace std;
 #define RefRatio	(0.5)
-
-/* Helper */
-
-extern int Debug;
 
 static inline void FreeTriangle() {
 	trinum--;
@@ -28,6 +23,11 @@ static int AllocTriangle(void) {
 	int id = trinum++;
 	return id; 
 }
+static inline int isFullPool(int need) {
+	if (trinum + need >= min(MaxTri, TriangleLimit))
+		return 1;
+	return 0;
+}
 
 
 static void SetNeighborToMe(int neighborID, int oldtriID, int newtriID)
@@ -38,7 +38,6 @@ static void SetNeighborToMe(int neighborID, int oldtriID, int newtriID)
 	for (int v = 0; v < 3; v++) {
 		if (neitri->neighbor[v] == oldtriID) {
 			neitri->neighbor[v] = newtriID;
-			return ;
 		}
 	}
 }
@@ -109,10 +108,6 @@ static float CalFF(TrianglePtr srctri, int logsrc, TrianglePtr destri, int logde
 {
 	Vector dir;
 	VectorTo(p, srctri->c, dir);
-/*
-	float ctheta1 = CosTheta(dir, srctri->n);
-	float ctheta2 = -CosTheta(dir, destri->n);
-*/
 	float dotSrc = InnerProd(dir, srctri->n);
 	float dotDes = -InnerProd(dir, destri->n);
 	if ((dotSrc < 0) != (dotDes < 0))
@@ -123,7 +118,6 @@ static float CalFF(TrianglePtr srctri, int logsrc, TrianglePtr destri, int logde
 	float ff = ctheta1 * ctheta2;
 	if (ff <= 0.0)
 		return 0.0;
-	//ff *= srctri->area / (norm2(dir) * PI + srctri->area);
 	ff *= srctri->area / (norm2(dir) * PI);
 	if (ff <= 0.0)
 		return 0.0;
@@ -167,8 +161,8 @@ float AdaptCalFF(float ff, TrianglePtr srctri, int logsrc, TrianglePtr destri, i
 	PartitionSource(srctri, &t1, &t2, edge);
 	float ff1 = CalFF(&t1, logsrc, destri, logdest, p);
 	float ff2 = CalFF(&t2, logsrc, destri, logdest, p);
-	if (fabs(ff1 + ff2 - ff) <= 15.0 * DeltaFFLimit);
-		return ff1 + ff2 + (ff1 + ff2 - ff) / 15.0;
+	if (fabs(ff1 + ff2 - ff) <= DeltaFFLimit);
+		return ff1 + ff2;
 	return AdaptCalFF(ff1, &t1, logsrc, destri, logdest, p)
 			+ AdaptCalFF(ff2, &t2, logsrc, destri, logdest, p);
 }
@@ -265,7 +259,7 @@ static inline void CalRadiosity(TrianglePtr srctri, TrianglePtr destri, float ff
 }
 
 inline int PartitionTriangleWithCenterAndStore(TrianglePtr srcTri, int realSrc, TrianglePtr &t1, TrianglePtr &t2, TrianglePtr &t3) {
-	if (trinum+10 >= MaxTri || trinum+10 >= TriangleLimit || srcTri->area < 1e-8)
+	if (isFullPool(4) || srcTri->area < 1e-8)
 		return -1;
 	{
 		float maxLen = 0.0, minLen = 1e+30;
@@ -273,10 +267,8 @@ inline int PartitionTriangleWithCenterAndStore(TrianglePtr srcTri, int realSrc, 
 			Vector l;
 			VectorTo(srcTri->p[v], srcTri->p[(v+1) % 3], l);
 			float length = norm2(l);
-			if (maxLen < length)
-				maxLen = length;
-			if (minLen > length)
-				minLen = length;
+			maxLen = max(maxLen, length);
+			minLen = min(minLen, length);
 		}
 		if (minLen/maxLen < 1e-1 || minLen < 1)
 			return -1;
@@ -319,7 +311,7 @@ inline int PartitionTriangleWithCenterAndStore(TrianglePtr srcTri, int realSrc, 
 inline int PartitionTriangleAndStore(TrianglePtr srcTri, int realSrc, int &destedge, 
 		TrianglePtr &t1, TrianglePtr &t2, TrianglePtr &t3, TrianglePtr &t4, bool &reshadeNeighbor) {
 	reshadeNeighbor = false;
-	if (trinum+10 >= MaxTri || trinum+10 >= TriangleLimit || srcTri->area < 1e-8)
+	if (isFullPool(4) || srcTri->area < 1e-8)
 		return -1;
 	destedge = 0;
 	{
@@ -447,7 +439,6 @@ int Shade(TrianglePtr srctri, int logsrc, TrianglePtr destri, int logdest, int r
 	/**********************************************************
 	  Calculate FF first.
 	 **********************************************************/
-	// #pragma omp parallel for
 	for (int v = 0; v < 3; v++)
 	{
 #ifdef ADAPT
@@ -469,7 +460,10 @@ int Shade(TrianglePtr srctri, int logsrc, TrianglePtr destri, int logdest, int r
 	CalRadiosity(srctri, destri, ff);
 	return 0;
 #endif
-
+	if (isFullPool(4) || destri->area < 1e-8) {
+		CalRadiosity(srctri, destri, ff);
+		return 0;
+	}
 	float groudFF = (ff[0] + ff[1] + ff[2]) / 3.0;
 #ifdef ADAPT
 	ffs = AdaptCalFF(CalFF(srctri, logsrc, destri, logdest, destri->c),
@@ -524,14 +518,13 @@ int Shade(TrianglePtr srctri, int logsrc, TrianglePtr destri, int logdest, int r
 		ff2[1] = ff[1];
 		CalRadiosity(srctri, t3, ff2);
 	}
+	if (replaceFlag < 0) {
+		CalRadiosity(srctri, destri, ff);
+	}
 	return replaceFlag; 
 #endif
 
 	replaceFlag = PartitionTriangleAndStore(destri, realdest, destedge, t1, t2, t3, t4, reshadeNeighbor);
-	if (replaceFlag < 0) {
-		CalRadiosity(srctri, destri, ff);
-		return 0;
-	}
 	if (replaceFlag == 1) {
 #ifndef ROLLBACK
 		float ff2[3];
@@ -562,24 +555,45 @@ int Shade(TrianglePtr srctri, int logsrc, TrianglePtr destri, int logdest, int r
 
 void PrePartitionTriangles()
 {
-	float threadhold = 100;
-	for (int it = 0; it < 100; it++) {
-		int has = 0;
-		for (int i = 0; i < trinum; i++) {
-			TrianglePtr tp = &TriStore[i];
-			if (tp->area < threadhold || isLightSource(tp))
-				continue;
-			has = 1;
-			int destedge;
-			bool reshadeNeighbor;
-			TrianglePtr t1, t2, t3, t4;
-			PartitionTriangleAndStore(tp, i, destedge, t1, t2, t3, t4, reshadeNeighbor);
-//			PartitionTriangleWithCenterAndStore(tp, i, t1, t2, t3);
+	float threadhold = 1;
+	fprintf(stderr, "[" KRED "DEBUG" KWHT "] Before PrePartitionTriangle %d\n", trinum);
+
+	set< pair<float, int> > S;
+	for (int i = 0; i < trinum; i++) {
+		TrianglePtr tp = &TriStore[i];
+		if (tp->area < 1.f || isLightSource(tp))
+			continue;
+		S.insert(make_pair(tp->area, i));
+	}
+
+	while (true) {
+		pair<float, int> t = *S.rbegin();
+		S.erase(t);
+		int destedge, ret;
+		bool reshadeNeighbor;
+		TrianglePtr tp = &TriStore[t.second];
+		TrianglePtr tv[4] = {NULL, NULL, NULL, NULL};
+		if (tp->area < threadhold)
+			break;
+		if ((ret = PartitionTriangleAndStore(tp, t.second, destedge, tv[0], tv[1], tv[2], tv[3], reshadeNeighbor)) < 0)
+			break;
+		if (isLightSource(tp)) {
+			for (int i = 0; i < 4; i++) {
+				if (tv[i] == NULL)
+					continue;
+				CopyVector(tp->Brgb, tv[i]->Brgb)
+				for (int v = 0; v < 3; v++) {
+					CopyVector(tp->accB[v], tv[i]->accB[v]);
+					tv[i]->deltaB[v] = tp->deltaB[v];
+				}
+			}
 		}
-		if (!has) {
-			threadhold = max(threadhold/2, 10.f);
+		for (int i = 0; i < 4; i++) {
+			if (tv[i] != NULL) {
+				S.insert(make_pair(tv[i]->area, tv[i] - TriStore));
+			}
 		}
 	}
-	fprintf(stderr, "[" KRED "DEBUG" KWHT "] After MoreTriangle %d\n", trinum);
+	fprintf(stderr, "[" KRED "DEBUG" KWHT "] After PrePartitionTriangle %d\n", trinum);
 }
 

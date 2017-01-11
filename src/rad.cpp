@@ -1,22 +1,17 @@
-/**************************************************************************
- * Filename:  rad.c
- *  Thu May 25 19:56:05 PDT 1995
- *
- *    				by Huang Tz-Shian
- ***************************************************************************/
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
 #include <string.h>
+#include <algorithm>
+#include <set>
+#include <omp.h>
+
 #include "rad.h"
 #include "raycast.h"
 #include "shade.h"
 #include "vector.h"
 #include "config.h"
 #include "float2string.h"
-#include <omp.h>
-#include <algorithm>
-#include <set>
 using namespace std;
 
 int Debug = 0;
@@ -36,7 +31,6 @@ namespace {
 }
 
 Triangle TriStore[MaxTri];
-int TriStorePtr;
 
 int trinum;
 Vector G0, G1;
@@ -84,8 +78,7 @@ void ReadTriangle(FILE * fp)
 		normalize(tp->n);
 
 		/* calculate the plane equations of three sides */
-		for (int i = 0; i < 3; i++)
-		{
+		for (int i = 0; i < 3; i++) {
 			VectorTo(tp->p[i], tp->p[(i + 1) % 3], v0);
 			CrossProd(tp->n, v0, v1);
 			tp->se[i][0] = v1[0];
@@ -95,14 +88,12 @@ void ReadTriangle(FILE * fp)
 		}
 
 		/* find the boundary */
-		for (int i = 0; i < 3; i++)
-			for (int j = 0; j < 3; j++)
-			{
-				if (limit0[j] > tp->p[i][j])
-					limit0[j] = tp->p[i][j];
-				if (limit1[j] < tp->p[i][j])
-					limit1[j] = tp->p[i][j];
+		for (int i = 0; i < 3; i++) {
+			for (int j = 0; j < 3; j++) {
+				limit0[j] = min(limit0[j], tp->p[i][j]);
+				limit1[j] = max(limit1[j], tp->p[i][j]);
 			}
+		}
 
 		/**********************************************************
 		  Initialize parent variable to itself.
@@ -114,14 +105,9 @@ void ReadTriangle(FILE * fp)
 	/* determine the encapsulated GRID corner--G0, G1 */
 	m = 0;
 	for (int i = 0; i < 3; i++)
-		if ((limit1[i] - limit0[i]) > m)
-			m = (limit1[i] - limit0[i]);
-	G0[0] = limit0[0] - PI;
-	G0[1] = limit0[1] - PI;
-	G0[2] = limit0[2] - PI;
-	G1[0] = G0[0] + m + 2 * PI;
-	G1[1] = G0[1] + m + 2 * PI;
-	G1[2] = G0[2] + m + 2 * PI;
+		m = max(m, limit1[i] - limit0[i]);
+	InitVector(G0, limit0[0]-PI, limit0[1]-PI, limit0[2]-PI);
+	InitVector(G1, G0[0]+m+2*PI, G0[1]+m+2*PI, G0[2]+m+2*PI);
 }
 
 
@@ -213,7 +199,6 @@ void PrintOut(const char *fname, int loop)
 			strcat(norm_str, "\n");
 		}
 
-
 		for (int j = 0; j < 3; j++) {
 			{
 				fp::tostring<float> z(tp->p[j][0]);
@@ -261,8 +246,7 @@ void PrintOut(const char *fname, int loop)
 	}
 }
 
-
-void init(FILE * fp)
+void InitModelFromFile(FILE * fp)
 {
 
 	ReadTriangle(fp);
@@ -272,19 +256,16 @@ void init(FILE * fp)
 	BuildTree();
 }
 
-
-
 /** 
  * Initiate accB and deltaB to 0. For the light source, set accB and
  * delta equal to its emiting value-- the background color.
  * Note: A patch is a light source iff any one background color is nonzero.
  */
-void InitRad(void)
+void InitRadiosity(void)
 {
 	float minarea = 100000000.0, maxarea = 0.0;
 
-	for (int i = 0; i < trinum; i++)
-	{
+	for (int i = 0; i < trinum; i++) {
 		TrianglePtr tp = &TriStore[i];
 		/**************************************************
 		  SampleArea = smallest area int this environment.
@@ -307,8 +288,7 @@ void InitRad(void)
 				tp->deltaB[1] += 100 * tp->accB[v][1] / 3;
 				tp->deltaB[2] += 100 * tp->accB[v][2] / 3;
 			}
-		}
-		else {
+		} else {
 			for (int v = 0; v < 3; v++)
 				InitVector(tp->accB[v], 0.0, 0.0, 0.0);
 			CopyVector(tp->accB[0], tp->deltaB);
@@ -467,6 +447,7 @@ static int parallelRadiosity() {
 		if (n == trinum)
 			break;
 	} while (true);
+
 	for (size_t j = 0; j < C.size(); j++) {
 		TrianglePtr srcTri = &TriStore[C[j]];
 		InitVector(srcTri->deltaB, 0.0, 0.0, 0.0);
@@ -514,7 +495,7 @@ static int serialRadiosity() {
 }
 void DoRadiosity(const char fileName[])
 {
-	InitRad();
+	InitRadiosity();
 #ifdef PRE_PARTITION 
 	PrePartitionTriangles();
 #endif
@@ -545,8 +526,6 @@ void DoRadiosity(const char fileName[])
 		fprintf(stderr, "[" KGRN "INFO" KWHT "] Store file took " KMAG "%f" KWHT " sec. time.\n", edTime - stTime);
 	}
 }
-
-
 
 char* ProcessOption(int argc, char *argv[], FILE* &fin)
 {
@@ -671,7 +650,7 @@ int main(int argc, char *argv[])
 
 	{
 		double stTime = omp_get_wtime();
-		init(fin);
+		InitModelFromFile(fin);
 		double edTime = omp_get_wtime();
 		fclose(fin);
 		fprintf(stderr, "[" KGRN "INFO" KWHT "] Init took " KMAG "%f" KWHT " sec. time.\n", edTime - stTime);
