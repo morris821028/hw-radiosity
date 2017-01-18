@@ -14,7 +14,7 @@
 <script type="text/javascript">
 
     var gl, vs_src, fs_src;
-    var modelName = "asset/test.json";
+    var modelName = "asset/parallel-blocks4s.json";
     var teapotData;
 
     function initGL(canvas) {
@@ -166,16 +166,9 @@
     }
 
 
-    var earthTexture;
     var galvanizedTexture;
 
     function initTextures() {
-        earthTexture = gl.createTexture();
-        earthTexture.image = new Image();
-        earthTexture.image.onload = function () {
-            handleLoadedTexture(earthTexture)
-        }
-        earthTexture.image.src = "images/earth.jpg";
 
         galvanizedTexture = gl.createTexture();
         galvanizedTexture.image = new Image();
@@ -661,11 +654,13 @@ body {
                 }
             </style>
             <h3>Model</h3>
+<!--
             <button class="pure-button" onclick="changeModel('test')">test</button>
-            <button class="pure-button" onclick="changeModel('parallel-blocks4s')">parallel-blocks4s</button>
-            <button class="pure-button" onclick="changeModel('parallel-room28s')">parallel-room28s</button>
-            <button class="pure-button" onclick="changeModel('parallel-church27s')">parallel-church27s</button>
-            <button class="pure-button" onclick="changeModel('parallel-hall43s')">parallel-hall43s</button>
+-->
+            <button class="pure-button" onclick="changeModel('parallel-blocks4s')">parallel-blocks</button>
+            <button class="pure-button" onclick="changeModel('parallel-room28s')">parallel-room</button>
+            <button class="pure-button" onclick="changeModel('parallel-church27s')">parallel-church</button>
+            <button class="pure-button" onclick="changeModel('parallel-hall43s')">parallel-hall</button>
     </div>
     <div class="pure-u-1">
         <form class="pure-form">
@@ -682,8 +677,15 @@ body {
         </form>
     </div>
 </div>
+</div>
+<div class="pure-g" style="margin: auto;">                                                                                                                                 <div class="pure-u-1" id='README' style="overflow-y: auto; height: 600px; background: white; padding: 20px;margin: 5%; font-family: Georgia, Times, 'Times New Roman', Microsoft JhengHei;">
+
+    </div>
+</div>
+
 
 <div class="pure-g" style="padding: 20px;margin: 5%;">
+
     <div class="pure-u-1" id="light-setting">
         <form class="pure-form pure-form-aligned">
             <legend>Material</legend>
@@ -828,11 +830,6 @@ body {
     </div>
 </div>
 
-<div class="pure-g" style="margin: auto;">
-    <div class="pure-u-1" id='README' style="overflow-y: auto; height: 600px; background: white; padding: 20px;margin: 5%; font-family: Georgia, Times, 'Times New Roman', Microsoft JhengHei;">
-
-    </div>
-</div>
 
 <script type="text/javascript">
 document.getElementById('README').innerHTML = marked(loadFile('README.md'));
