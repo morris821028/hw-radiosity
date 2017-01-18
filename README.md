@@ -2,6 +2,9 @@
 
 CPU-based [Radiosity](https://en.wikipedia.org/wiki/Radiosity_(computer_graphics)) (computer graphics)
 
+* [slide](https://morris821028.github.io/hw-radiosity/doc/slide/)
+* [WebGL Online Demo](https://morris821028.github.io/hw-radiosity/WebGL_demo/public/)
+
 ## Usage ##
 
 * Compiler: g++ 4.8.5 - support C++14
